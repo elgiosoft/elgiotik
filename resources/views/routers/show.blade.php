@@ -1,0 +1,428 @@
+@extends('layouts.app')
+
+@section('title', $router->name . ' - Router Details')
+
+@section('content')
+<div class="py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center">
+                    <a href="{{ route('routers.index') }}" class="mr-4 text-gray-400 hover:text-gray-600 transition">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                    </a>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">{{ $router->name }}</h2>
+                        <p class="mt-1 text-sm text-gray-500">{{ $router->location ?? 'No location specified' }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <!-- Test Connection -->
+                    <form action="{{ route('routers.test', $router) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                            <svg class="-ml-1 mr-2 h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            Test Connection
+                        </button>
+                    </form>
+
+                    <!-- Sync -->
+                    <form action="{{ route('routers.sync', $router) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                            <svg class="-ml-1 mr-2 h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Sync Data
+                        </button>
+                    </form>
+
+                    <!-- Edit -->
+                    <a href="{{ route('routers.edit', $router) }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Edit Router
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success/Error Messages -->
+        @if(session('success'))
+        <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-green-700">{{ session('success') }}</p>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        @if(session('error'))
+        <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-red-700">{{ session('error') }}</p>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+            <!-- Status Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            @if($router->status === 'online')
+                            <div class="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </div>
+                            @elseif($router->status === 'offline')
+                            <div class="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </div>
+                            @else
+                            <div class="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                            </div>
+                            @endif
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Connection Status</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900 capitalize">{{ $router->status }}</div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Online Users Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Online Users</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900">{{ $router->getOnlineUsersCount() }}</div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Hotspot Users Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                                <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900">{{ $router->hotspotUsers()->count() }}</div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Vouchers Card -->
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                                <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Active Vouchers</dt>
+                                <dd class="flex items-baseline">
+                                    <div class="text-2xl font-semibold text-gray-900">{{ $router->vouchers()->where('status', 'active')->count() }}</div>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Router Details Grid -->
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <!-- Connection Information -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-5 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Connection Information</h3>
+                </div>
+                <div class="px-6 py-5">
+                    <dl class="space-y-4">
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">IP Address</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->ip_address }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">API Port</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->api_port }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Username</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->username }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Connection String</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->getConnectionString() }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Active Status</dt>
+                            <dd class="text-sm">
+                                @if($router->is_active)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Active
+                                </span>
+                                @else
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    Inactive
+                                </span>
+                                @endif
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Router Details -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-5 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Router Details</h3>
+                </div>
+                <div class="px-6 py-5">
+                    <dl class="space-y-4">
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Router Name</dt>
+                            <dd class="text-sm text-gray-900">{{ $router->name }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Location</dt>
+                            <dd class="text-sm text-gray-900">{{ $router->location ?? 'Not specified' }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Created At</dt>
+                            <dd class="text-sm text-gray-900">{{ $router->created_at->format('M d, Y h:i A') }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
+                            <dd class="text-sm text-gray-900">{{ $router->updated_at->format('M d, Y h:i A') }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Last Seen</dt>
+                            <dd class="text-sm text-gray-900">{{ $router->last_seen_at ? $router->last_seen_at->format('M d, Y h:i A') : 'Never' }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Description -->
+        @if($router->description)
+        <div class="mt-6 bg-white shadow rounded-lg">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Description</h3>
+            </div>
+            <div class="px-6 py-5">
+                <p class="text-sm text-gray-700">{{ $router->description }}</p>
+            </div>
+        </div>
+        @endif
+
+        <!-- Recent Activity Tabs -->
+        <div class="mt-6 bg-white shadow rounded-lg" x-data="{ activeTab: 'users' }">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+                    <button
+                        @click="activeTab = 'users'"
+                        :class="activeTab === 'users' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition"
+                    >
+                        Online Users
+                    </button>
+                    <button
+                        @click="activeTab = 'sessions'"
+                        :class="activeTab === 'sessions' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition"
+                    >
+                        Recent Sessions
+                    </button>
+                    <button
+                        @click="activeTab = 'vouchers'"
+                        :class="activeTab === 'vouchers' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition"
+                    >
+                        Vouchers
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Online Users Tab -->
+            <div x-show="activeTab === 'users'" class="px-6 py-5">
+                @if($router->hotspotUsers()->where('is_online', true)->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MAC Address</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Login Time</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($router->hotspotUsers()->where('is_online', true)->limit(10)->get() as $user)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{{ $user->username }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{{ $user->mac_address ?? 'N/A' }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{{ $user->ip_address ?? 'N/A' }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->login_time ? $user->login_time->diffForHumans() : 'N/A' }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @else
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No online users</h3>
+                    <p class="mt-1 text-sm text-gray-500">There are currently no users connected to this router.</p>
+                </div>
+                @endif
+            </div>
+
+            <!-- Recent Sessions Tab -->
+            <div x-show="activeTab === 'sessions'" x-cloak class="px-6 py-5">
+                @if($router->userSessions()->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upload</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Download</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($router->userSessions()->latest()->limit(10)->get() as $session)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{{ $session->username }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ $session->duration_formatted ?? 'N/A' }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ $session->upload_formatted ?? 'N/A' }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ $session->download_formatted ?? 'N/A' }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ $session->start_time->format('M d, h:i A') }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @else
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No session history</h3>
+                    <p class="mt-1 text-sm text-gray-500">There are no recorded sessions for this router yet.</p>
+                </div>
+                @endif
+            </div>
+
+            <!-- Vouchers Tab -->
+            <div x-show="activeTab === 'vouchers'" x-cloak class="px-6 py-5">
+                @if($router->vouchers()->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires At</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($router->vouchers()->latest()->limit(10)->get() as $voucher)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-4 whitespace-nowrap text-sm font-mono text-gray-900">{{ $voucher->code }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ $voucher->bandwidthPlan->name ?? 'N/A' }}</td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {{ $voucher->status === 'active' ? 'bg-green-100 text-green-800' : ($voucher->status === 'used' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') }}">
+                                        {{ ucfirst($voucher->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{{ $voucher->expires_at ? $voucher->expires_at->format('M d, Y') : 'No expiry' }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @else
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No vouchers</h3>
+                    <p class="mt-1 text-sm text-gray-500">There are no vouchers associated with this router yet.</p>
+                </div>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
