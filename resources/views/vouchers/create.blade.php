@@ -48,9 +48,9 @@
                 </label>
                 <select name="bandwidth_plan_id" id="bandwidth_plan_id" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md @error('bandwidth_plan_id') border-red-300 @enderror">
                     <option value="">Select a plan</option>
-                    @foreach($plans ?? [] as $plan)
+                    @foreach($bandwidthPlans ?? [] as $plan)
                         <option value="{{ $plan->id }}" {{ old('bandwidth_plan_id') == $plan->id ? 'selected' : '' }}>
-                            {{ $plan->name }} - {{ $plan->speed ?? 'N/A' }}
+                            {{ $plan->name }} - {{ $plan->download_speed }}/{{ $plan->upload_speed }}
                         </option>
                     @endforeach
                 </select>

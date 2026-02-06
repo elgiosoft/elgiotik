@@ -118,4 +118,28 @@ class LoginController extends Controller
     {
         return Str::transliterate(Str::lower($request->input('email')).'|'.$request->ip());
     }
+
+    /**
+     * Log the user out of the application.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function logout(Request $request)
+    {
+        // Get user name before logging out
+        $userName = Auth::user()->name;
+
+        // Log the user out
+        Auth::logout();
+
+        // Invalidate the session
+        $request->session()->invalidate();
+
+        // Regenerate the CSRF token
+        $request->session()->regenerateToken();
+
+        // Redirect to login page with success message
+        return redirect()->route('login')->with('success', 'You have been logged out successfully. Goodbye, ' . $userName . '!');
+    }
 }
