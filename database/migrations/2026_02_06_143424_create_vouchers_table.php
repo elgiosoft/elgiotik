@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('vouchers', function (Blueprint $table) {
             $table->id();
             $table->string('code')->unique();
+            $table->string('password')->nullable();
             $table->foreignId('bandwidth_plan_id')->constrained()->cascadeOnDelete();
             $table->foreignId('router_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();

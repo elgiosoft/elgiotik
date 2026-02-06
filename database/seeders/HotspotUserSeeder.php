@@ -15,7 +15,7 @@ class HotspotUserSeeder extends Seeder
     public function run(): void
     {
         $usedVouchers = Voucher::where('status', 'used')
-            ->with(['bandwidthPlan', 'customer'])
+            ->with(['bandwidthPlan', 'customer', 'router'])
             ->get();
 
         $routers = Router::where('is_active', true)->get();
@@ -52,27 +52,36 @@ class HotspotUserSeeder extends Seeder
             $downloadBytes = $totalBytes - $uploadBytes;
 
             // Calculate session time
-            $totalTime = $this->calculateSessionTime($voucher->activated_at, $plan->time_limit);
+            $sessionTime = $this->calculateSessionTime($voucher->activated_at, $plan->validity_hours ?? null);
 
             // Determine if currently online (10% chance if not expired)
             $isOnline = (!$voucher->expires_at || $voucher->expires_at->isFuture()) && rand(1, 100) <= 10;
 
+            // Determine status
+            $status = 'active';
+            if ($voucher->expires_at && $voucher->expires_at->isPast()) {
+                $status = 'expired';
+                $isOnline = false;
+            }
+
             $hotspotUser = [
-                'voucher_id' => $voucher->id,
-                'router_id' => $router->id,
                 'username' => $voucher->code,
-                'password' => $voucher->password,
+                'password' => substr(strtolower(str_replace('-', '', $voucher->code)), 0, 8),
+                'router_id' => $router->id,
+                'bandwidth_plan_id' => $plan->id,
+                'customer_id' => $voucher->customer_id,
+                'voucher_id' => $voucher->id,
+                'status' => $status,
                 'mac_address' => $macAddress,
                 'ip_address' => $this->generateIpAddress(),
-                'profile' => $plan->name,
-                'uptime' => $totalTime,
                 'bytes_in' => $uploadBytes,
                 'bytes_out' => $downloadBytes,
-                'packets_in' => intval($uploadBytes / rand(500, 1500)),
-                'packets_out' => intval($downloadBytes / rand(500, 1500)),
+                'session_time' => $sessionTime,
+                'last_login_at' => $voucher->activated_at,
+                'last_logout_at' => $isOnline ? null : now()->subMinutes(rand(30, 1440)),
+                'expires_at' => $voucher->expires_at,
                 'is_online' => $isOnline,
-                'last_seen_at' => $isOnline ? now() : now()->subMinutes(rand(30, 1440)),
-                'first_login_at' => $voucher->activated_at,
+                'created_by' => $voucher->sold_by,
                 'created_at' => $voucher->activated_at,
                 'updated_at' => now(),
             ];
@@ -106,9 +115,9 @@ class HotspotUserSeeder extends Seeder
     }
 
     /**
-     * Calculate session time based on activation and time limit
+     * Calculate session time based on activation and validity hours
      */
-    private function calculateSessionTime($activatedAt, $timeLimit): int
+    private function calculateSessionTime($activatedAt, $validityHours): int
     {
         if (!$activatedAt) {
             return 0;
@@ -116,30 +125,14 @@ class HotspotUserSeeder extends Seeder
 
         $secondsSinceActivation = now()->diffInSeconds($activatedAt);
 
-        // If there's a time limit, parse it
-        if ($timeLimit) {
-            $limitSeconds = $this->parseTimeLimit($timeLimit);
+        // If there's a time limit in hours, convert to seconds
+        if ($validityHours) {
+            $limitSeconds = $validityHours * 3600;
             return min($secondsSinceActivation, $limitSeconds);
         }
 
         // No time limit, return actual time
         return $secondsSinceActivation;
-    }
-
-    /**
-     * Parse time limit string (e.g., "1h", "24h", "3h") to seconds
-     */
-    private function parseTimeLimit($timeLimit): int
-    {
-        if (preg_match('/(\d+)h/', $timeLimit, $matches)) {
-            return intval($matches[1]) * 3600;
-        }
-
-        if (preg_match('/(\d+)m/', $timeLimit, $matches)) {
-            return intval($matches[1]) * 60;
-        }
-
-        return 86400; // Default to 24 hours
     }
 
     /**

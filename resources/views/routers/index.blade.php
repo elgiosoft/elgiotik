@@ -182,7 +182,7 @@
                                     </a>
 
                                     <!-- Test Connection -->
-                                    <form action="{{ route('routers.test', $router) }}" method="POST" class="inline">
+                                    <form action="{{ route('routers.testConnection', $router) }}" method="POST" class="inline">
                                         @csrf
                                         <button type="submit" class="text-green-600 hover:text-green-900 transition" title="Test Connection">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +192,7 @@
                                     </form>
 
                                     <!-- Sync -->
-                                    <form action="{{ route('routers.sync', $router) }}" method="POST" class="inline">
+                                    <form action="{{ route('routers.syncUsers', $router) }}" method="POST" class="inline">
                                         @csrf
                                         <button type="submit" class="text-purple-600 hover:text-purple-900 transition" title="Sync Data">
                                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

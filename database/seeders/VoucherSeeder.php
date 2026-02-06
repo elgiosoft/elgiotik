@@ -39,6 +39,7 @@ class VoucherSeeder extends Seeder
 
                 $voucher = [
                     'bandwidth_plan_id' => $plan->id,
+                    'router_id' => null,
                     'customer_id' => $customer->id,
                     'code' => $this->generateUniqueCode(),
                     'password' => $this->generatePassword(),
@@ -46,19 +47,25 @@ class VoucherSeeder extends Seeder
                     'price' => $plan->price,
                     'sold_at' => $soldAt,
                     'sold_by' => $users->random()->id,
+                    'activated_at' => null,
+                    'expires_at' => null,
+                    'mac_address' => null,
+                    'notes' => null,
                     'created_at' => $soldAt->copy()->subHours(rand(1, 24)),
                 ];
 
                 // Set activation and expiry dates for used vouchers
                 if ($status === 'used') {
                     $activatedAt = $soldAt->copy()->addHours(rand(1, 48));
+                    $validityDays = $plan->validity_days ?? 1;
                     $voucher['activated_at'] = $activatedAt;
-                    $voucher['expires_at'] = $activatedAt->copy()->addDays($plan->validity_period);
+                    $voucher['expires_at'] = $activatedAt->copy()->addDays($validityDays);
                 }
 
                 // Set expiry for expired vouchers
                 if ($status === 'expired') {
-                    $voucher['expires_at'] = $soldAt->copy()->addDays($plan->validity_period);
+                    $validityDays = $plan->validity_days ?? 1;
+                    $voucher['expires_at'] = $soldAt->copy()->addDays($validityDays);
                 }
 
                 $vouchers[] = $voucher;
@@ -74,6 +81,7 @@ class VoucherSeeder extends Seeder
 
                 $vouchers[] = [
                     'bandwidth_plan_id' => $plan->id,
+                    'router_id' => null,
                     'customer_id' => null,
                     'code' => $this->generateUniqueCode(),
                     'password' => $this->generatePassword(),
@@ -83,6 +91,8 @@ class VoucherSeeder extends Seeder
                     'sold_by' => null,
                     'activated_at' => null,
                     'expires_at' => null,
+                    'mac_address' => null,
+                    'notes' => null,
                     'created_at' => $createdAt,
                 ];
             }
