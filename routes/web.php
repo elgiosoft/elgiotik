@@ -10,6 +10,7 @@ use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\HotspotUserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\PortalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,8 +23,20 @@ use App\Http\Controllers\SettingController;
 |
 */
 
-// Redirect root to dashboard
-Route::redirect('/', '/dashboard');
+// Public Captive Portal Routes (No Authentication Required)
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('/', [PortalController::class, 'index'])->name('index');
+    Route::post('/activate-voucher', [PortalController::class, 'activateVoucher'])->name('activate');
+    Route::get('/payment', [PortalController::class, 'showPayment'])->name('payment');
+    Route::post('/payment', [PortalController::class, 'processPayment'])->name('payment.process');
+    Route::get('/payment-status', [PortalController::class, 'paymentStatus'])->name('payment-status');
+    Route::post('/payment-callback', [PortalController::class, 'paymentCallback'])->name('payment-callback');
+    Route::get('/payment-success', [PortalController::class, 'paymentSuccess'])->name('payment-success');
+    Route::get('/success', [PortalController::class, 'success'])->name('success');
+});
+
+// Redirect root to portal
+Route::redirect('/', '/portal');
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
