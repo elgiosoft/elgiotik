@@ -6,16 +6,9 @@
     <title>Complete Payment - VillageNet</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen">
 
-    <!-- Animated Background -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-    </div>
-
-    <div class="relative min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="min-h-screen flex items-center justify-center px-4 py-12">
         <div class="w-full max-w-2xl">
 
             <!-- Back Button -->
@@ -27,20 +20,13 @@
             </a>
 
             <!-- Main Card -->
-            <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
 
                 <!-- Header -->
-                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-8">
-                    <div class="flex items-center gap-4 mb-4">
-                        <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-bold text-white">Complete Payment</h1>
-                            <p class="text-indigo-100">Secure mobile money payment</p>
-                        </div>
+                <div class="bg-indigo-600 px-8 py-6">
+                    <div class="text-center">
+                        <h1 class="text-2xl font-bold text-white mb-1">Complete Payment</h1>
+                        <p class="text-indigo-100 text-sm">Secure mobile money payment</p>
                     </div>
 
                     <!-- Progress Steps -->
@@ -64,16 +50,16 @@
                         <input type="hidden" name="plan_id" value="{{ $bandwidthPlan->id }}">
 
                         <!-- Selected Plan Summary -->
-                        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 mb-8 border-2 border-indigo-100">
-                            <div class="flex items-center justify-between mb-4">
+                        <div class="bg-indigo-50 rounded-xl p-5 mb-6 border border-indigo-100">
+                            <div class="flex items-center justify-between mb-3">
                                 <div>
-                                    <p class="text-sm text-gray-600 mb-1">Selected Plan</p>
-                                    <h3 class="text-2xl font-bold text-gray-900">{{ $bandwidthPlan->name }}</h3>
+                                    <p class="text-xs text-gray-600 mb-1">Selected Plan</p>
+                                    <h3 class="text-xl font-bold text-gray-900">{{ $bandwidthPlan->name }}</h3>
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-sm text-gray-600 mb-1">Total Amount</p>
-                                    <p class="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                        ${{ number_format($bandwidthPlan->price, 2) }}
+                                    <p class="text-xs text-gray-600 mb-1">Total Amount</p>
+                                    <p class="text-2xl font-bold text-indigo-600">
+                                        {{ number_format($bandwidthPlan->price, 0) }} XAF
                                     </p>
                                 </div>
                             </div>
@@ -103,9 +89,8 @@
                         </div>
 
                         <!-- Step 1: Select Payment Provider -->
-                        <div class="mb-8">
-                            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <span class="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-lg flex items-center justify-center text-sm">1</span>
+                        <div class="mb-6">
+                            <h2 class="text-lg font-bold text-gray-900 mb-4">
                                 Select Payment Provider
                             </h2>
 
@@ -119,17 +104,16 @@
                                         x-model="selectedProvider"
                                         class="sr-only peer"
                                         required>
-                                    <div class="bg-gradient-to-br from-white to-gray-50 border-3 border-gray-300 peer-checked:border-yellow-400 peer-checked:shadow-xl rounded-2xl p-6 transition-all group-hover:shadow-lg">
+                                    <div class="bg-white border-2 border-gray-300 peer-checked:border-yellow-500 peer-checked:bg-yellow-50 rounded-xl p-5 transition-all">
                                         <div class="flex flex-col items-center text-center">
-                                            <div class="w-20 h-20 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                                                <span class="text-white font-bold text-2xl">MTN</span>
+                                            <div class="w-16 h-16 bg-yellow-500 rounded-lg flex items-center justify-center mb-3">
+                                                <span class="text-white font-bold text-xl">MTN</span>
                                             </div>
-                                            <h3 class="text-lg font-bold text-gray-900 mb-1">MTN Money</h3>
-                                            <p class="text-sm text-gray-600">Mobile Money</p>
+                                            <h3 class="text-base font-bold text-gray-900">MTN Money</h3>
                                         </div>
                                         <!-- Checkmark -->
-                                        <div class="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full items-center justify-center shadow-lg hidden peer-checked:flex">
-                                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <div class="absolute top-3 right-3 w-6 h-6 bg-green-500 rounded-full items-center justify-center hidden peer-checked:flex">
+                                            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                             </svg>
                                         </div>
@@ -145,20 +129,18 @@
                                         x-model="selectedProvider"
                                         class="sr-only peer"
                                         required>
-                                    <div class="bg-gradient-to-br from-white to-gray-50 border-3 border-gray-300 peer-checked:border-orange-400 peer-checked:shadow-xl rounded-2xl p-6 transition-all group-hover:shadow-lg">
+                                    <div class="bg-white border-2 border-gray-300 peer-checked:border-orange-500 peer-checked:bg-orange-50 rounded-xl p-5 transition-all">
                                         <div class="flex flex-col items-center text-center">
-                                            <div class="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                                                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
+                                            <div class="w-16 h-16 bg-orange-500 rounded-lg flex items-center justify-center mb-3">
+                                                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"/>
                                                 </svg>
                                             </div>
-                                            <h3 class="text-lg font-bold text-gray-900 mb-1">Orange Money</h3>
-                                            <p class="text-sm text-gray-600">Mobile Money</p>
+                                            <h3 class="text-base font-bold text-gray-900">Orange Money</h3>
                                         </div>
                                         <!-- Checkmark -->
-                                        <div class="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full items-center justify-center shadow-lg hidden peer-checked:flex">
-                                            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <div class="absolute top-3 right-3 w-6 h-6 bg-green-500 rounded-full items-center justify-center hidden peer-checked:flex">
+                                            <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                                             </svg>
                                         </div>
@@ -176,9 +158,8 @@
                         </div>
 
                         <!-- Step 2: Enter Phone Number -->
-                        <div class="mb-8">
-                            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <span class="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-lg flex items-center justify-center text-sm">2</span>
+                        <div class="mb-6">
+                            <h2 class="text-lg font-bold text-gray-900 mb-4">
                                 Enter Your Phone Number
                             </h2>
 
@@ -194,7 +175,7 @@
                                     id="phone_number"
                                     value="{{ old('phone_number') }}"
                                     placeholder="+237 6XX XXX XXX"
-                                    class="w-full pl-12 pr-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 transition-all outline-none @error('phone_number') border-red-400 @enderror"
+                                    class="w-full pl-12 pr-4 py-3 text-base bg-white border border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none @error('phone_number') border-red-400 @enderror"
                                     required>
                             </div>
                             @error('phone_number')
@@ -232,7 +213,7 @@
                             <button
                                 type="submit"
                                 :disabled="loading"
-                                class="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <span x-show="!loading">Confirm Payment</span>
                                 <span x-show="loading" class="flex items-center gap-2">
                                     <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -289,25 +270,6 @@
     </div>
 
     <style>
-        @keyframes blob {
-            0% { transform: translate(0px, 0px) scale(1); }
-            33% { transform: translate(30px, -50px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.9); }
-            100% { transform: translate(0px, 0px) scale(1); }
-        }
-
-        .animate-blob {
-            animation: blob 7s infinite;
-        }
-
-        .animation-delay-2000 {
-            animation-delay: 2s;
-        }
-
-        .animation-delay-4000 {
-            animation-delay: 4s;
-        }
-
         [x-cloak] {
             display: none !important;
         }
