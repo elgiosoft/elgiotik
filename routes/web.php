@@ -68,6 +68,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/{router}/test-connection', [RouterController::class, 'testConnection'])->name('testConnection');
         Route::post('/{router}/sync-users', [RouterController::class, 'syncUsers'])->name('syncUsers');
         Route::post('/{router}/disconnect', [RouterController::class, 'disconnect'])->name('disconnect');
+
+        // VPN Management
+        Route::post('/{router}/enable-vpn', [RouterController::class, 'enableVpn'])->name('enableVpn');
+        Route::post('/{router}/disable-vpn', [RouterController::class, 'disableVpn'])->name('disableVpn');
+        Route::post('/{router}/regenerate-vpn', [RouterController::class, 'regenerateVpn'])->name('regenerateVpn');
+        Route::get('/{router}/download-vpn-script', [RouterController::class, 'downloadVpnScript'])->name('downloadVpnScript');
     });
 
     // Bandwidth Plans Management

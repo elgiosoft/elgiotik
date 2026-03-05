@@ -28,6 +28,14 @@ class Router extends Model
         'is_active',
         'status',
         'last_seen_at',
+        'vpn_enabled',
+        'vpn_ip',
+        'vpn_public_key',
+        'vpn_private_key',
+        'vpn_endpoint',
+        'vpn_listen_port',
+        'vpn_last_handshake',
+        'vpn_config_script',
     ];
 
     /**
@@ -37,6 +45,7 @@ class Router extends Model
      */
     protected $hidden = [
         'password',
+        'vpn_private_key',
     ];
 
     /**
@@ -46,7 +55,9 @@ class Router extends Model
      */
     protected $casts = [
         'is_active' => 'boolean',
+        'vpn_enabled' => 'boolean',
         'last_seen_at' => 'datetime',
+        'vpn_last_handshake' => 'datetime',
     ];
 
     public function decryptedPassword(): string
@@ -137,5 +148,33 @@ class Router extends Model
     public function getOnlineUsersCount(): int
     {
         return $this->hotspotUsers()->where('is_online', true)->count();
+    }
+
+    /**
+     * Check if router uses VPN
+     */
+    public function usesVpn(): bool
+    {
+        return $this->vpn_enabled && !empty($this->vpn_ip);
+    }
+
+    /**
+     * Get the IP address to use for connection (VPN if enabled, otherwise direct IP)
+     */
+    public function getConnectionIp(): string
+    {
+        return $this->usesVpn() ? $this->vpn_ip : $this->ip_address;
+    }
+
+    /**
+     * Check if VPN handshake is recent (within last 3 minutes)
+     */
+    public function hasRecentHandshake(): bool
+    {
+        if (!$this->vpn_last_handshake) {
+            return false;
+        }
+
+        return $this->vpn_last_handshake->diffInMinutes(now()) < 3;
     }
 }

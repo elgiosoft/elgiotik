@@ -12,9 +12,17 @@ class MikroTikService
 {
     protected $client;
     protected $router;
+    protected $connectionTimeout;
+    protected $attempts;
+    protected $delay;
 
     public function __construct(?Router $router = null)
     {
+        // Load connection settings from config
+        $this->connectionTimeout = config('mikrotik.connection_timeout', 5);
+        $this->attempts = config('mikrotik.attempts', 3);
+        $this->delay = config('mikrotik.delay', 1);
+
         if ($router) {
             $this->router = $router;
             $this->connect($router);
@@ -22,27 +30,56 @@ class MikroTikService
     }
 
     /**
-     * Connect to MikroTik router
+     * Connect to MikroTik router with retry logic
      */
     public function connect(Router $router): bool
     {
-        try {
-            $this->client = new Client([
-                'host' => $router->ip_address,
-                'user' => $router->username,
-                'pass' => $router->decryptedPassword(),
-                'port' => $router->api_port,
-            ]);
+        $lastException = null;
 
-            $this->router = $router;
-            $router->updateStatus('online');
+        for ($attempt = 1; $attempt <= $this->attempts; $attempt++) {
+            try {
+                // Use VPN IP if enabled, otherwise use direct IP
+                $connectIp = $router->getConnectionIp();
 
-            return true;
-        } catch (Exception $e) {
-            Log::error('MikroTik connection failed: ' . $e->getMessage());
-            $router->updateStatus('offline');
-            return false;
+                Log::info("Attempting to connect to MikroTik router {$router->name} (Attempt {$attempt}/{$this->attempts})", [
+                    'ip' => $connectIp,
+                    'port' => $router->api_port,
+                    'via_vpn' => $router->usesVpn(),
+                ]);
+
+                $this->client = new Client([
+                    'host' => $connectIp,
+                    'user' => $router->username,
+                    'pass' => $router->decryptedPassword(),
+                    'port' => $router->api_port,
+                    'timeout' => $this->connectionTimeout,
+                ]);
+
+                // Test connection by getting system identity
+                $query = new Query('/system/identity/print');
+                $this->client->query($query)->read();
+
+                $this->router = $router;
+                $router->updateStatus('online');
+
+                Log::info("Successfully connected to MikroTik router {$router->name}");
+                return true;
+
+            } catch (Exception $e) {
+                $lastException = $e;
+                Log::warning("MikroTik connection attempt {$attempt} failed for {$router->name}: " . $e->getMessage());
+
+                // Wait before retrying (except on last attempt)
+                if ($attempt < $this->attempts) {
+                    sleep($this->delay);
+                }
+            }
         }
+
+        // All attempts failed
+        Log::error("All MikroTik connection attempts failed for {$router->name}: " . $lastException->getMessage());
+        $router->updateStatus('offline');
+        return false;
     }
 
     /**
@@ -50,10 +87,12 @@ class MikroTikService
      */
     public function testConnection(Router $router): array
     {
+        try {
+            // Use VPN IP if enabled
+            $connectIp = $router->getConnectionIp();
 
-    try {
             $client = new Client([
-                'host' => $router->ip_address,
+                'host' => $connectIp,
                 'user' => $router->username,
                 'pass' => $router->decryptedPassword(),
                 'port' => $router->api_port,

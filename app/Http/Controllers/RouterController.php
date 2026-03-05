@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Router;
 use App\Models\HotspotUser;
 use App\Services\MikroTikService;
+use App\Services\WireGuardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Exception;
 
@@ -72,6 +74,7 @@ class RouterController extends Controller
             'location' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
+            'vpn_enabled' => ['boolean'],
         ]);
 
         try {
@@ -79,12 +82,23 @@ class RouterController extends Controller
             $validated['password'] = Crypt::encryptString($validated['password']);
             $validated['status'] = 'offline'; // Default status
             $validated['is_active'] = $request->boolean('is_active', true);
+            $validated['vpn_enabled'] = $request->boolean('vpn_enabled', config('mikrotik.vpn.auto_provision', true));
 
             $router = Router::create($validated);
 
+            // Auto-provision VPN if enabled
+            if ($validated['vpn_enabled']) {
+                $this->provisionVpn($router);
+            }
+
+            $message = 'Router created successfully.';
+            if ($router->vpn_enabled) {
+                $message .= ' VPN configuration generated. Download the setup script from the router details page.';
+            }
+
             return redirect()
                 ->route('routers.show', $router)
-                ->with('success', 'Router created successfully.');
+                ->with('success', $message);
         } catch (Exception $e) {
             return back()
                 ->withInput()
@@ -358,5 +372,149 @@ class RouterController extends Controller
         } catch (Exception $e) {
             return back()->with('error', 'Disconnect failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Provision VPN for router (generate keys, assign IP, create config)
+     */
+    protected function provisionVpn(Router $router): void
+    {
+        try {
+            $vpnService = new WireGuardService();
+
+            // Generate WireGuard keys
+            $keys = $vpnService->generateKeyPair();
+
+            // Get next available IP
+            $vpnIp = $vpnService->getNextAvailableIp();
+
+            // Update router with VPN details
+            $router->update([
+                'vpn_ip' => $vpnIp,
+                'vpn_public_key' => $keys['public_key'],
+                'vpn_private_key' => $keys['private_key'],
+                'vpn_endpoint' => config('mikrotik.vpn.server_endpoint'),
+                'vpn_listen_port' => config('mikrotik.vpn.port', 51820),
+            ]);
+
+            // Generate MikroTik configuration script
+            $config = $vpnService->generateMikroTikConfig($router);
+            $router->update(['vpn_config_script' => $config]);
+
+            // Try to add peer to server (if WireGuard is available)
+            $vpnService->addPeerToServer($router);
+
+            Log::info("VPN provisioned for router {$router->name}", [
+                'router_id' => $router->id,
+                'vpn_ip' => $vpnIp,
+            ]);
+
+        } catch (Exception $e) {
+            Log::error("Failed to provision VPN for router {$router->name}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Enable VPN for an existing router
+     */
+    public function enableVpn(Router $router)
+    {
+        try {
+            if ($router->vpn_enabled) {
+                return back()->with('info', 'VPN is already enabled for this router.');
+            }
+
+            $router->update(['vpn_enabled' => true]);
+            $this->provisionVpn($router);
+
+            return back()->with('success', 'VPN enabled and configured successfully. Download the setup script below.');
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to enable VPN: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Disable VPN for a router
+     */
+    public function disableVpn(Router $router)
+    {
+        try {
+            if (!$router->vpn_enabled) {
+                return back()->with('info', 'VPN is not enabled for this router.');
+            }
+
+            // Remove peer from server
+            $vpnService = new WireGuardService();
+            $vpnService->removePeerFromServer($router);
+
+            // Clear VPN data but keep history
+            $router->update(['vpn_enabled' => false]);
+
+            Log::info("VPN disabled for router {$router->name}", [
+                'router_id' => $router->id,
+            ]);
+
+            return back()->with('success', 'VPN disabled successfully.');
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to disable VPN: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Regenerate VPN configuration
+     */
+    public function regenerateVpn(Router $router)
+    {
+        try {
+            if (!$router->vpn_enabled) {
+                return back()->with('error', 'VPN is not enabled for this router.');
+            }
+
+            $vpnService = new WireGuardService();
+
+            // Remove old peer
+            $vpnService->removePeerFromServer($router);
+
+            // Generate new keys
+            $keys = $vpnService->generateKeyPair();
+
+            // Update router
+            $router->update([
+                'vpn_public_key' => $keys['public_key'],
+                'vpn_private_key' => $keys['private_key'],
+            ]);
+
+            // Regenerate config
+            $config = $vpnService->generateMikroTikConfig($router);
+            $router->update(['vpn_config_script' => $config]);
+
+            // Add new peer
+            $vpnService->addPeerToServer($router);
+
+            Log::info("VPN regenerated for router {$router->name}", [
+                'router_id' => $router->id,
+            ]);
+
+            return back()->with('success', 'VPN configuration regenerated successfully. Download the new setup script.');
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to regenerate VPN: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download VPN setup script for router
+     */
+    public function downloadVpnScript(Router $router)
+    {
+        if (!$router->vpn_enabled || !$router->vpn_config_script) {
+            return back()->with('error', 'VPN configuration not available for this router.');
+        }
+
+        $filename = 'mikrotik-vpn-' . str_replace(' ', '-', strtolower($router->name)) . '.rsc';
+
+        return response($router->vpn_config_script)
+            ->header('Content-Type', 'text/plain')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 }

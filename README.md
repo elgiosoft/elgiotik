@@ -105,6 +105,8 @@ After running seeders (when available), use these credentials:
 
 ### MikroTik Router Setup
 
+#### For Local Network (Direct Connection)
+
 1. Enable API access on your MikroTik router:
 ```
 /ip service enable api
@@ -120,6 +122,40 @@ After running seeders (when available), use these credentials:
    - Navigate to Routers → Add Router
    - Fill in router details (IP, port, username, password)
    - Test connection
+
+#### For Remote Routers (VPN Connection) - Recommended for elgiotik.com
+
+When hosting ElgioTik on **elgiotik.com** and managing remote MikroTik routers, VPN is **automatically provisioned**!
+
+1. **Setup VPN on Server** (One-time setup):
+   ```bash
+   sudo ./setup-vpn.sh
+   ```
+
+2. **Add Router in ElgioTik Dashboard**:
+   - Navigate to Routers → Add Router
+   - Fill in router details
+   - **Enable VPN**: ✓ (checked by default)
+   - Save router
+
+3. **ElgioTik Automatically**:
+   - ✅ Generates WireGuard keys
+   - ✅ Assigns VPN IP (10.10.10.11, .12, ...)
+   - ✅ Creates MikroTik setup script
+   - ✅ Updates server configuration
+
+4. **Download & Import Script**:
+   - Click "Download VPN Script" on router page
+   - Upload to MikroTik via WinBox/WebFig
+   - Import: `/import mikrotik-vpn-router-name.rsc`
+   - VPN connects automatically!
+
+5. **Test Connection**: `php artisan router:test`
+
+**Documentation**:
+- Quick Start: `VPN_QUICK_START.md`
+- Auto-Provisioning: `VPN_AUTO_PROVISION_GUIDE.md`
+- Detailed Setup: `VPN_SETUP_GUIDE.md`
 
 ## User Roles & Permissions
 
