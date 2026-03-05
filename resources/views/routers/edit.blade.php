@@ -90,6 +90,84 @@
                 <div class="border-b border-gray-200 pb-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Connection Settings</h3>
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- RouterOS Version -->
+                        <div class="sm:col-span-2">
+                            <label for="routeros_version" class="block text-sm font-medium text-gray-700 mb-1">
+                                RouterOS Version <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                name="routeros_version"
+                                id="routeros_version"
+                                required
+                                onchange="updateVPNTypeInfo()"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('routeros_version') border-red-300 @enderror"
+                            >
+                                <option value="">Select RouterOS version</option>
+                                <optgroup label="RouterOS 7.x (WireGuard VPN)">
+                                    <option value="7.15" {{ old('routeros_version', $router->routeros_version) === '7.15' ? 'selected' : '' }}>7.15 (Latest Stable)</option>
+                                    <option value="7.14" {{ old('routeros_version', $router->routeros_version) === '7.14' ? 'selected' : '' }}>7.14</option>
+                                    <option value="7.13" {{ old('routeros_version', $router->routeros_version) === '7.13' ? 'selected' : '' }}>7.13</option>
+                                    <option value="7.12" {{ old('routeros_version', $router->routeros_version) === '7.12' ? 'selected' : '' }}>7.12</option>
+                                    <option value="7.11" {{ old('routeros_version', $router->routeros_version) === '7.11' ? 'selected' : '' }}>7.11</option>
+                                    <option value="7.10" {{ old('routeros_version', $router->routeros_version) === '7.10' ? 'selected' : '' }}>7.10</option>
+                                    <option value="7.9" {{ old('routeros_version', $router->routeros_version) === '7.9' ? 'selected' : '' }}>7.9</option>
+                                    <option value="7.8" {{ old('routeros_version', $router->routeros_version) === '7.8' ? 'selected' : '' }}>7.8</option>
+                                    <option value="7.7" {{ old('routeros_version', $router->routeros_version) === '7.7' ? 'selected' : '' }}>7.7</option>
+                                    <option value="7.6" {{ old('routeros_version', $router->routeros_version) === '7.6' ? 'selected' : '' }}>7.6</option>
+                                    <option value="7.5" {{ old('routeros_version', $router->routeros_version) === '7.5' ? 'selected' : '' }}>7.5</option>
+                                    <option value="7.4" {{ old('routeros_version', $router->routeros_version) === '7.4' ? 'selected' : '' }}>7.4</option>
+                                    <option value="7.3" {{ old('routeros_version', $router->routeros_version) === '7.3' ? 'selected' : '' }}>7.3</option>
+                                    <option value="7.2" {{ old('routeros_version', $router->routeros_version) === '7.2' ? 'selected' : '' }}>7.2</option>
+                                    <option value="7.1" {{ old('routeros_version', $router->routeros_version) === '7.1' ? 'selected' : '' }}>7.1</option>
+                                    <option value="7.0" {{ old('routeros_version', $router->routeros_version) === '7.0' ? 'selected' : '' }}>7.0</option>
+                                </optgroup>
+                                <optgroup label="RouterOS 6.x (OpenVPN)">
+                                    <option value="6.49" {{ old('routeros_version', $router->routeros_version) === '6.49' ? 'selected' : '' }}>6.49 (Long-term)</option>
+                                    <option value="6.48" {{ old('routeros_version', $router->routeros_version) === '6.48' ? 'selected' : '' }}>6.48</option>
+                                    <option value="6.47" {{ old('routeros_version', $router->routeros_version) === '6.47' ? 'selected' : '' }}>6.47</option>
+                                    <option value="6.46" {{ old('routeros_version', $router->routeros_version) === '6.46' ? 'selected' : '' }}>6.46</option>
+                                    <option value="6.45" {{ old('routeros_version', $router->routeros_version) === '6.45' ? 'selected' : '' }}>6.45</option>
+                                    <option value="6.44" {{ old('routeros_version', $router->routeros_version) === '6.44' ? 'selected' : '' }}>6.44</option>
+                                    <option value="6.43" {{ old('routeros_version', $router->routeros_version) === '6.43' ? 'selected' : '' }}>6.43</option>
+                                </optgroup>
+                            </select>
+                            @error('routeros_version')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-1 text-xs text-gray-500">
+                                Check your RouterOS version: <code class="px-1 py-0.5 bg-gray-100 rounded text-xs">/system resource print</code>
+                            </p>
+
+                            <!-- VPN Type Info Box -->
+                            <div id="vpn-type-info" class="mt-3 p-3 rounded-lg {{ $router->routeros_version ? 'bg-blue-50 border border-blue-200' : 'hidden' }}">
+                                <div class="flex items-start">
+                                    <svg class="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-medium text-blue-900" id="vpn-type-name">
+                                            @if($router->routeros_version)
+                                                @if($router->supportsWireGuard())
+                                                    WireGuard VPN will be used
+                                                @else
+                                                    OpenVPN will be used
+                                                @endif
+                                            @endif
+                                        </p>
+                                        <p class="text-xs text-blue-700 mt-1" id="vpn-type-description">
+                                            @if($router->routeros_version)
+                                                @if($router->supportsWireGuard())
+                                                    Modern, fast VPN with built-in support in RouterOS 7.x
+                                                @else
+                                                    Traditional VPN compatible with RouterOS 6.x
+                                                @endif
+                                            @endif
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- IP Address -->
                         <div>
                             <label for="ip_address" class="block text-sm font-medium text-gray-700 mb-1">
@@ -268,4 +346,35 @@
         </div>
     </div>
 </div>
+
+<script>
+function updateVPNTypeInfo() {
+    const versionSelect = document.getElementById('routeros_version');
+    const infoBox = document.getElementById('vpn-type-info');
+    const vpnTypeName = document.getElementById('vpn-type-name');
+    const vpnTypeDescription = document.getElementById('vpn-type-description');
+
+    const version = versionSelect.value;
+
+    if (!version) {
+        infoBox.classList.add('hidden');
+        return;
+    }
+
+    // Show the info box
+    infoBox.classList.remove('hidden');
+    infoBox.classList.add('bg-blue-50', 'border', 'border-blue-200');
+
+    // Determine VPN type based on version
+    const majorVersion = parseInt(version.split('.')[0]);
+
+    if (majorVersion >= 7) {
+        vpnTypeName.textContent = 'WireGuard VPN will be used';
+        vpnTypeDescription.textContent = 'Modern, fast VPN with built-in support in RouterOS 7.x';
+    } else {
+        vpnTypeName.textContent = 'OpenVPN will be used';
+        vpnTypeDescription.textContent = 'Traditional VPN compatible with RouterOS 6.x';
+    }
+}
+</script>
 @endsection

@@ -187,6 +187,7 @@ class RouterController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
             'status' => ['nullable', 'in:online,offline,maintenance'],
+            'routeros_version' => ['required', 'string', 'regex:/^\d+\.\d+/'],
         ]);
 
         try {
@@ -199,11 +200,31 @@ class RouterController extends Controller
 
             $validated['is_active'] = $request->boolean('is_active');
 
+            // Check if RouterOS version changed and VPN is enabled
+            $versionChanged = $router->routeros_version !== $validated['routeros_version'];
+            if ($versionChanged) {
+                // Update VPN type based on new RouterOS version
+                $newVpnType = VPNFactory::determineVPNType($validated['routeros_version']);
+                $validated['vpn_type'] = $newVpnType;
+
+                // If VPN is enabled and type changed, regenerate configuration
+                if ($router->vpn_enabled && $router->vpn_type !== $newVpnType) {
+                    Log::info("RouterOS version changed for {$router->name}, VPN type updated from {$router->vpn_type} to {$newVpnType}");
+                }
+            }
+
             $router->update($validated);
+
+            $message = 'Router updated successfully.';
+
+            // Warn user if VPN needs reconfiguration
+            if ($versionChanged && $router->vpn_enabled && $router->vpn_type !== $router->getOriginal('vpn_type')) {
+                $message .= ' RouterOS version changed - VPN type updated. Please regenerate VPN configuration from the router details page.';
+            }
 
             return redirect()
                 ->route('routers.show', $router)
-                ->with('success', 'Router updated successfully.');
+                ->with('success', $message);
         } catch (Exception $e) {
             return back()
                 ->withInput()
