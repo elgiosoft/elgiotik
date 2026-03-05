@@ -292,12 +292,24 @@
                     <!-- VPN Details -->
                     <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-6">
                         <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">RouterOS Version</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->routeros_version ?? 'Unknown' }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">VPN Type</dt>
+                            <dd class="text-sm text-gray-900">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $router->vpn_type === 'wireguard' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
+                                    {{ $router->vpn_type_name }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div class="flex justify-between">
                             <dt class="text-sm font-medium text-gray-500">VPN IP Address</dt>
                             <dd class="text-sm text-gray-900 font-mono">{{ $router->vpn_ip ?? 'Not assigned' }}</dd>
                         </div>
                         <div class="flex justify-between">
                             <dt class="text-sm font-medium text-gray-500">VPN Port</dt>
-                            <dd class="text-sm text-gray-900 font-mono">{{ $router->vpn_listen_port ?? 51820 }}</dd>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->vpn_listen_port ?? ($router->vpn_type === 'wireguard' ? 51820 : 1194) }}</dd>
                         </div>
                         <div class="flex justify-between">
                             <dt class="text-sm font-medium text-gray-500">Server Endpoint</dt>
@@ -379,7 +391,14 @@
                         </svg>
                         <h3 class="mt-2 text-sm font-medium text-gray-900">VPN Not Enabled</h3>
                         <p class="mt-1 text-sm text-gray-500 max-w-md mx-auto">
-                            Enable VPN to securely connect this router to ElgioTik over an encrypted WireGuard tunnel.
+                            Enable VPN to securely connect this router to ElgioTik over an encrypted tunnel.
+                            @if($router->routeros_version)
+                                @if($router->supportsWireGuard())
+                                    This router supports <strong>WireGuard VPN</strong> (fast, modern).
+                                @else
+                                    This router will use <strong>OpenVPN</strong> (compatible with RouterOS 6.x).
+                                @endif
+                            @endif
                             VPN automatically generates keys, assigns IP, and creates ready-to-use configuration.
                         </p>
                         <div class="mt-6">

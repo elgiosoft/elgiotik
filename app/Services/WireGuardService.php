@@ -20,7 +20,10 @@ class WireGuardService
         $this->configPath = config('mikrotik.vpn.config_path', '/etc/wireguard/wg0.conf');
         $this->vpnSubnet = config('mikrotik.vpn.subnet', '10.10.10.0/24');
         $this->vpnPort = config('mikrotik.vpn.port', 51820);
-        $this->serverEndpoint = config('mikrotik.vpn.server_endpoint', config('app.url'));
+
+        // Get server endpoint and strip http/https protocol
+        $endpoint = config('mikrotik.vpn.server_endpoint', config('app.url'));
+        $this->serverEndpoint = preg_replace('#^https?://#', '', $endpoint);
     }
 
     /**

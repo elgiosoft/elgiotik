@@ -6,6 +6,8 @@ use App\Models\Router;
 use App\Models\HotspotUser;
 use App\Services\MikroTikService;
 use App\Services\WireGuardService;
+use App\Services\OpenVPNService;
+use App\Services\VPNFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
@@ -75,6 +77,7 @@ class RouterController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
             'vpn_enabled' => ['boolean'],
+            'routeros_version' => ['required', 'string', 'regex:/^\d+\.\d+/'],
         ]);
 
         try {
@@ -83,6 +86,9 @@ class RouterController extends Controller
             $validated['status'] = 'offline'; // Default status
             $validated['is_active'] = $request->boolean('is_active', true);
             $validated['vpn_enabled'] = $request->boolean('vpn_enabled', config('mikrotik.vpn.auto_provision', true));
+
+            // Determine VPN type based on RouterOS version
+            $validated['vpn_type'] = VPNFactory::determineVPNType($validated['routeros_version']);
 
             $router = Router::create($validated);
 
@@ -93,7 +99,8 @@ class RouterController extends Controller
 
             $message = 'Router created successfully.';
             if ($router->vpn_enabled) {
-                $message .= ' VPN configuration generated. Download the setup script from the router details page.';
+                $vpnTypeName = VPNFactory::getVPNTypeName($router->vpn_type);
+                $message .= " {$vpnTypeName} VPN configuration generated. Download the setup script from the router details page.";
             }
 
             return redirect()
@@ -380,32 +387,43 @@ class RouterController extends Controller
     protected function provisionVpn(Router $router): void
     {
         try {
-            $vpnService = new WireGuardService();
-
-            // Generate WireGuard keys
-            $keys = $vpnService->generateKeyPair();
+            // Get appropriate VPN service based on router version
+            $vpnService = VPNFactory::forRouter($router);
 
             // Get next available IP
             $vpnIp = $vpnService->getNextAvailableIp();
 
+            // Generate keys/certificates based on VPN type
+            if ($router->vpn_type === 'wireguard') {
+                $keys = $vpnService->generateKeyPair();
+                $port = config('mikrotik.vpn.port', 51820);
+            } else {
+                // OpenVPN
+                $keys = $vpnService->generateCertificates($router);
+                $port = config('mikrotik.vpn.openvpn_port', 1194);
+            }
+
             // Update router with VPN details
             $router->update([
                 'vpn_ip' => $vpnIp,
-                'vpn_public_key' => $keys['public_key'],
-                'vpn_private_key' => $keys['private_key'],
+                'vpn_public_key' => $keys['public_key'] ?? null,
+                'vpn_private_key' => $keys['private_key'] ?? $keys['psk'],
                 'vpn_endpoint' => config('mikrotik.vpn.server_endpoint'),
-                'vpn_listen_port' => config('mikrotik.vpn.port', 51820),
+                'vpn_listen_port' => $port,
             ]);
 
             // Generate MikroTik configuration script
             $config = $vpnService->generateMikroTikConfig($router);
             $router->update(['vpn_config_script' => $config]);
 
-            // Try to add peer to server (if WireGuard is available)
-            $vpnService->addPeerToServer($router);
+            // Try to add peer to server (if WireGuard)
+            if ($router->vpn_type === 'wireguard' && method_exists($vpnService, 'addPeerToServer')) {
+                $vpnService->addPeerToServer($router);
+            }
 
             Log::info("VPN provisioned for router {$router->name}", [
                 'router_id' => $router->id,
+                'vpn_type' => $router->vpn_type,
                 'vpn_ip' => $vpnIp,
             ]);
 
@@ -444,9 +462,11 @@ class RouterController extends Controller
                 return back()->with('info', 'VPN is not enabled for this router.');
             }
 
-            // Remove peer from server
-            $vpnService = new WireGuardService();
-            $vpnService->removePeerFromServer($router);
+            // Remove peer from server (if WireGuard)
+            if ($router->vpn_type === 'wireguard') {
+                $vpnService = new WireGuardService();
+                $vpnService->removePeerFromServer($router);
+            }
 
             // Clear VPN data but keep history
             $router->update(['vpn_enabled' => false]);
@@ -471,26 +491,34 @@ class RouterController extends Controller
                 return back()->with('error', 'VPN is not enabled for this router.');
             }
 
-            $vpnService = new WireGuardService();
+            $vpnService = VPNFactory::forRouter($router);
 
-            // Remove old peer
-            $vpnService->removePeerFromServer($router);
+            // Remove old peer (if WireGuard)
+            if ($router->vpn_type === 'wireguard' && method_exists($vpnService, 'removePeerFromServer')) {
+                $vpnService->removePeerFromServer($router);
+            }
 
-            // Generate new keys
-            $keys = $vpnService->generateKeyPair();
+            // Generate new keys/certificates
+            if ($router->vpn_type === 'wireguard') {
+                $keys = $vpnService->generateKeyPair();
+            } else {
+                $keys = $vpnService->generateCertificates($router);
+            }
 
             // Update router
             $router->update([
-                'vpn_public_key' => $keys['public_key'],
-                'vpn_private_key' => $keys['private_key'],
+                'vpn_public_key' => $keys['public_key'] ?? null,
+                'vpn_private_key' => $keys['private_key'] ?? $keys['psk'],
             ]);
 
             // Regenerate config
             $config = $vpnService->generateMikroTikConfig($router);
             $router->update(['vpn_config_script' => $config]);
 
-            // Add new peer
-            $vpnService->addPeerToServer($router);
+            // Add new peer (if WireGuard)
+            if ($router->vpn_type === 'wireguard' && method_exists($vpnService, 'addPeerToServer')) {
+                $vpnService->addPeerToServer($router);
+            }
 
             Log::info("VPN regenerated for router {$router->name}", [
                 'router_id' => $router->id,

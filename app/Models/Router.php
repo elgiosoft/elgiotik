@@ -36,6 +36,8 @@ class Router extends Model
         'vpn_listen_port',
         'vpn_last_handshake',
         'vpn_config_script',
+        'routeros_version',
+        'vpn_type',
     ];
 
     /**
@@ -176,5 +178,55 @@ class Router extends Model
         }
 
         return $this->vpn_last_handshake->diffInMinutes(now()) < 3;
+    }
+
+    /**
+     * Get RouterOS major version
+     */
+    public function getRouterOSMajorVersion(): ?int
+    {
+        if (!$this->routeros_version) {
+            return null;
+        }
+
+        preg_match('/^(\d+)\./', $this->routeros_version, $matches);
+        return isset($matches[1]) ? (int) $matches[1] : null;
+    }
+
+    /**
+     * Check if router supports WireGuard
+     */
+    public function supportsWireGuard(): bool
+    {
+        $majorVersion = $this->getRouterOSMajorVersion();
+        return $majorVersion && $majorVersion >= 7;
+    }
+
+    /**
+     * Check if router supports OpenVPN
+     */
+    public function supportsOpenVPN(): bool
+    {
+        return true; // OpenVPN supported in all RouterOS versions
+    }
+
+    /**
+     * Get recommended VPN type based on RouterOS version
+     */
+    public function getRecommendedVPNType(): string
+    {
+        return $this->supportsWireGuard() ? 'wireguard' : 'openvpn';
+    }
+
+    /**
+     * Get VPN type display name
+     */
+    public function getVPNTypeNameAttribute(): string
+    {
+        return match($this->vpn_type) {
+            'wireguard' => 'WireGuard',
+            'openvpn' => 'OpenVPN',
+            default => 'None',
+        };
     }
 }
