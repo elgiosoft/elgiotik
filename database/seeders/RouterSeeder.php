@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Router;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Crypt;
 
 class RouterSeeder extends Seeder
 {
@@ -17,7 +18,7 @@ class RouterSeeder extends Seeder
                 'name' => 'Main Gateway Router',
                 'ip_address' => '192.168.88.1',
                 'username' => 'admin',
-                'password' => 'admin123',
+                'password' => Crypt::encryptString('admin123'),
                 'api_port' => 8728,
                 'is_active' => true,
                 'status' => 'online',
@@ -29,7 +30,7 @@ class RouterSeeder extends Seeder
                 'name' => 'Village North Router',
                 'ip_address' => '192.168.88.2',
                 'username' => 'admin',
-                'password' => 'admin123',
+                'password' => Crypt::encryptString('admin123'),
                 'api_port' => 8728,
                 'is_active' => true,
                 'status' => 'online',
@@ -41,7 +42,7 @@ class RouterSeeder extends Seeder
                 'name' => 'Village South Router',
                 'ip_address' => '192.168.88.3',
                 'username' => 'admin',
-                'password' => 'admin123',
+                'password' => Crypt::encryptString('admin123'),
                 'api_port' => 8728,
                 'is_active' => true,
                 'status' => 'online',
@@ -53,7 +54,7 @@ class RouterSeeder extends Seeder
                 'name' => 'Market Area Router',
                 'ip_address' => '192.168.88.4',
                 'username' => 'admin',
-                'password' => 'admin123',
+                'password' => Crypt::encryptString('admin123'),
                 'api_port' => 8728,
                 'is_active' => true,
                 'status' => 'online',
@@ -65,7 +66,7 @@ class RouterSeeder extends Seeder
                 'name' => 'Backup Router',
                 'ip_address' => '192.168.88.10',
                 'username' => 'admin',
-                'password' => 'admin123',
+                'password' => Crypt::encryptString('admin123'),
                 'api_port' => 8728,
                 'is_active' => false,
                 'status' => 'offline',

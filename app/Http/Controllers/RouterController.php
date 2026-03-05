@@ -112,11 +112,7 @@ class RouterController extends Controller
             // Try to get real-time statistics from router
             if ($router->isOnline()) {
                 try {
-                    $decryptedPassword = Crypt::decryptString($router->password);
-                    $tempRouter = clone $router;
-                    $tempRouter->password = $decryptedPassword;
-
-                    $mikrotik = new MikroTikService($tempRouter);
+                    $mikrotik = new MikroTikService($router);
 
                     // Get online users count
                     $activeConnections = $mikrotik->getActiveConnections();
@@ -231,13 +227,9 @@ class RouterController extends Controller
     public function testConnection(Router $router)
     {
         try {
-            // Decrypt password for connection test
-            $decryptedPassword = Crypt::decryptString($router->password);
-            $tempRouter = clone $router;
-            $tempRouter->password = $decryptedPassword;
 
             $mikrotik = new MikroTikService();
-            $result = $mikrotik->testConnection($tempRouter);
+            $result = $mikrotik->testConnection($router);
 
             if ($result['success']) {
                 $router->updateStatus('online');
@@ -261,12 +253,8 @@ class RouterController extends Controller
     public function syncUsers(Router $router)
     {
         try {
-            // Decrypt password for connection
-            $decryptedPassword = Crypt::decryptString($router->password);
-            $tempRouter = clone $router;
-            $tempRouter->password = $decryptedPassword;
 
-            $mikrotik = new MikroTikService($tempRouter);
+            $mikrotik = new MikroTikService($router);
 
             // Get users from router
             $routerUsers = $mikrotik->getHotspotUsers();
@@ -327,7 +315,9 @@ class RouterController extends Controller
             $message = "Sync completed: {$synced} users processed ({$created} created, {$updated} updated)";
 
             if (count($errors) > 0) {
-                $message .= ". " . count($errors) . " error(s) occurred.";
+                $message .= ". " . count($errors) . " error(s) occurred.". join(', ', array_map(function($error) {
+                    return "User '{$error['user']}': {$error['error']}";
+                }, $errors));
             }
 
             return back()->with('success', $message);
@@ -346,12 +336,8 @@ class RouterController extends Controller
         ]);
 
         try {
-            // Decrypt password for connection
-            $decryptedPassword = Crypt::decryptString($router->password);
-            $tempRouter = clone $router;
-            $tempRouter->password = $decryptedPassword;
 
-            $mikrotik = new MikroTikService($tempRouter);
+            $mikrotik = new MikroTikService($router);
 
             $success = $mikrotik->disconnectUser($validated['username']);
 

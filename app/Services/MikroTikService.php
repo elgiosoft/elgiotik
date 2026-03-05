@@ -30,7 +30,7 @@ class MikroTikService
             $this->client = new Client([
                 'host' => $router->ip_address,
                 'user' => $router->username,
-                'pass' => $router->password,
+                'pass' => $router->decryptedPassword(),
                 'port' => $router->api_port,
             ]);
 
@@ -50,11 +50,12 @@ class MikroTikService
      */
     public function testConnection(Router $router): array
     {
-        try {
+
+    try {
             $client = new Client([
                 'host' => $router->ip_address,
                 'user' => $router->username,
-                'pass' => $router->password,
+                'pass' => $router->decryptedPassword(),
                 'port' => $router->api_port,
             ]);
 

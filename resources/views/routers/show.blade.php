@@ -21,7 +21,7 @@
                 </div>
                 <div class="flex items-center space-x-3">
                     <!-- Test Connection -->
-                    <form action="{{ route('routers.test', $router) }}" method="POST" class="inline">
+                    <form action="{{ route('routers.testConnection', $router) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
                             <svg class="-ml-1 mr-2 h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@
                     </form>
 
                     <!-- Sync -->
-                    <form action="{{ route('routers.sync', $router) }}" method="POST" class="inline">
+                    <form action="{{ route('routers.syncUsers', $router) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
                             <svg class="-ml-1 mr-2 h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('hotspot_users', function (Blueprint $table) {
             $table->id();
             $table->string('username')->unique();
-            $table->string('password');
+            $table->string('password')->nullable();
             $table->foreignId('router_id')->constrained()->cascadeOnDelete();
             $table->foreignId('bandwidth_plan_id')->constrained()->cascadeOnDelete();
             $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();

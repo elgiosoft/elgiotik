@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Crypt;
+
 
 class Router extends Model
 {
@@ -46,6 +48,11 @@ class Router extends Model
         'is_active' => 'boolean',
         'last_seen_at' => 'datetime',
     ];
+
+    public function decryptedPassword(): string
+    {
+        return Crypt::decryptString($this->password);
+    }
 
     /**
      * Relationships
