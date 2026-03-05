@@ -268,6 +268,136 @@
             </div>
         </div>
 
+        <!-- VPN Configuration -->
+        <div class="mt-6 bg-white shadow rounded-lg">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">VPN Configuration</h3>
+                    @if($router->vpn_enabled)
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        VPN Enabled
+                    </span>
+                    @else
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                        VPN Disabled
+                    </span>
+                    @endif
+                </div>
+            </div>
+            <div class="px-6 py-5">
+                @if($router->vpn_enabled)
+                    <!-- VPN Details -->
+                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-6">
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">VPN IP Address</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->vpn_ip ?? 'Not assigned' }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">VPN Port</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->vpn_listen_port ?? 51820 }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Server Endpoint</dt>
+                            <dd class="text-sm text-gray-900 font-mono">{{ $router->vpn_endpoint ?? config('mikrotik.vpn.server_endpoint') }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm font-medium text-gray-500">Last Handshake</dt>
+                            <dd class="text-sm text-gray-900">
+                                @if($router->vpn_last_handshake)
+                                    {{ $router->vpn_last_handshake->diffForHumans() }}
+                                    @if($router->hasRecentHandshake())
+                                        <span class="ml-2 text-green-600">●</span>
+                                    @else
+                                        <span class="ml-2 text-red-600">●</span>
+                                    @endif
+                                @else
+                                    <span class="text-gray-400">Never</span>
+                                @endif
+                            </dd>
+                        </div>
+                        <div class="flex justify-between sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">Public Key</dt>
+                            <dd class="text-sm text-gray-900 font-mono break-all">{{ Str::limit($router->vpn_public_key, 40) ?? 'Not generated' }}</dd>
+                        </div>
+                    </dl>
+
+                    <!-- VPN Actions -->
+                    <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+                        <!-- Download VPN Script -->
+                        @if($router->vpn_config_script)
+                        <a href="{{ route('routers.downloadVpnScript', $router) }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Download VPN Script
+                        </a>
+                        @endif
+
+                        <!-- Regenerate VPN -->
+                        <form action="{{ route('routers.regenerateVpn', $router) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to regenerate VPN keys? You will need to re-import the new script on the MikroTik router.');">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                                <svg class="-ml-1 mr-2 h-5 w-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                Regenerate VPN Keys
+                            </button>
+                        </form>
+
+                        <!-- Disable VPN -->
+                        <form action="{{ route('routers.disableVpn', $router) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to disable VPN for this router?');">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">
+                                <svg class="-ml-1 mr-2 h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                </svg>
+                                Disable VPN
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- VPN Setup Instructions -->
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <h4 class="text-sm font-medium text-gray-900 mb-3">Setup Instructions</h4>
+                        <ol class="text-sm text-gray-600 space-y-2 list-decimal list-inside">
+                            <li>Download the VPN script using the button above</li>
+                            <li>Upload the script to your MikroTik router via WinBox or WebFig</li>
+                            <li>Open Terminal and run: <code class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">/import file-name.rsc</code></li>
+                            <li>Wait 30 seconds for VPN connection to establish</li>
+                            <li>Update this router's IP address to: <code class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">{{ $router->vpn_ip }}</code></li>
+                            <li>Test connection using the "Test Connection" button above</li>
+                        </ol>
+                    </div>
+                @else
+                    <!-- VPN Not Enabled -->
+                    <div class="text-center py-8">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">VPN Not Enabled</h3>
+                        <p class="mt-1 text-sm text-gray-500 max-w-md mx-auto">
+                            Enable VPN to securely connect this router to ElgioTik over an encrypted WireGuard tunnel.
+                            VPN automatically generates keys, assigns IP, and creates ready-to-use configuration.
+                        </p>
+                        <div class="mt-6">
+                            <form action="{{ route('routers.enableVpn', $router) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                    Enable VPN
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+
         <!-- Description -->
         @if($router->description)
         <div class="mt-6 bg-white shadow rounded-lg">

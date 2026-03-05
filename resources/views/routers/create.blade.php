@@ -215,6 +215,56 @@
                     </div>
                 </div>
 
+                <!-- VPN Settings -->
+                <div class="pb-6 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">VPN Settings</h3>
+                    <div class="space-y-4">
+                        <!-- Enable VPN Checkbox -->
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input
+                                    type="checkbox"
+                                    name="vpn_enabled"
+                                    id="vpn_enabled"
+                                    value="1"
+                                    {{ old('vpn_enabled', config('mikrotik.vpn.auto_provision', true)) ? 'checked' : '' }}
+                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                >
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="vpn_enabled" class="font-medium text-gray-900">Enable VPN (Recommended)</label>
+                                <p class="text-gray-500">Automatically provision WireGuard VPN for secure remote connection. Keys and configuration will be generated automatically.</p>
+                            </div>
+                        </div>
+
+                        <!-- VPN Info -->
+                        <div class="bg-green-50 border-l-4 border-green-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-green-700 font-medium">VPN Auto-Provisioning</p>
+                                    <p class="text-sm text-green-700 mt-1">
+                                        When enabled, ElgioTik will automatically:
+                                    </p>
+                                    <ul class="text-sm text-green-700 mt-2 space-y-1 list-disc list-inside">
+                                        <li>Generate WireGuard encryption keys</li>
+                                        <li>Assign a VPN IP address (e.g., 10.10.10.11)</li>
+                                        <li>Create ready-to-use MikroTik configuration script</li>
+                                        <li>Update server VPN configuration</li>
+                                    </ul>
+                                    <p class="text-sm text-green-700 mt-2">
+                                        After creating the router, you can download the script and import it on your MikroTik!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Info Box -->
                 <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
                     <div class="flex">

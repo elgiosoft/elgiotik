@@ -101,11 +101,20 @@ if command -v ufw &> /dev/null && ufw status | grep -q "Status: active"; then
 elif command -v iptables &> /dev/null; then
     echo "Configuring iptables..."
     iptables -A INPUT -p udp --dport $LISTEN_PORT -j ACCEPT
+
     # Save rules (method varies by distro)
     if command -v netfilter-persistent &> /dev/null; then
+        echo "Saving with netfilter-persistent..."
         netfilter-persistent save
     elif command -v iptables-save &> /dev/null; then
+        echo "Saving with iptables-save..."
+        # Create directory if it doesn't exist
+        mkdir -p /etc/iptables
         iptables-save > /etc/iptables/rules.v4
+    else
+        echo "⚠ Warning: Could not save iptables rules permanently"
+        echo "  Rule added but will be lost on reboot"
+        echo "  To make permanent, install: apt install iptables-persistent"
     fi
     echo "✓ iptables configured"
 else
