@@ -62,8 +62,9 @@ class WireGuardService
         // Start from .11 (reserve .1-.10 for server/special use)
         $startOctet = 11;
 
-        // Get all assigned IPs
+        // Only get IPs from WireGuard subnet (10.10.10.0/24)
         $assignedIps = Router::whereNotNull('vpn_ip')
+            ->where('vpn_type', 'wireguard')
             ->pluck('vpn_ip')
             ->toArray();
 

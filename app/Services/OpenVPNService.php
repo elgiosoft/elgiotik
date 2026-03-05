@@ -21,7 +21,7 @@ class OpenVPNService
     {
         $endpoint = config('mikrotik.vpn.server_endpoint', config('app.url'));
         $this->serverEndpoint = preg_replace('#^https?://#', '', $endpoint);
-        $this->vpnSubnet = config('mikrotik.vpn.subnet', '10.10.10.0/24');
+        $this->vpnSubnet = config('mikrotik.vpn.openvpn_subnet', '10.10.20.0/24');
         $this->vpnPort = config('mikrotik.vpn.openvpn_port', 1194);
     }
 
@@ -65,7 +65,9 @@ class OpenVPNService
         $parts = explode('.', $baseIp);
         $startOctet = 11;
 
+        // Only get IPs from OpenVPN subnet (10.10.20.0/24)
         $assignedIps = Router::whereNotNull('vpn_ip')
+            ->where('vpn_type', 'openvpn')
             ->pluck('vpn_ip')
             ->toArray();
 

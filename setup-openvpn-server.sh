@@ -18,15 +18,16 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Configuration variables
-VPN_SUBNET="10.10.10.0"
+VPN_SUBNET="10.10.20.0"  # OpenVPN subnet (WireGuard uses 10.10.10.0/24)
 VPN_NETMASK="255.255.255.0"
 VPN_PORT="1194"
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 echo "Configuration:"
-echo "  VPN Subnet: $VPN_SUBNET/24"
+echo "  VPN Subnet: $VPN_SUBNET/24 (OpenVPN)"
 echo "  VPN Port: $VPN_PORT"
 echo "  Server IP: $SERVER_IP"
+echo "  Note: WireGuard uses 10.10.10.0/24, OpenVPN uses 10.10.20.0/24"
 echo ""
 
 # Update system
@@ -62,7 +63,7 @@ echo "Step 7: Generating Diffie-Hellman parameters (this may take a while)..."
 
 # Generate TLS auth key
 echo "Step 8: Generating TLS authentication key..."
-openvpn --genkey secret /etc/openvpn/ta.key
+openvpn --genkey --secret /etc/openvpn/ta.key
 
 # Copy certificates to OpenVPN directory
 echo "Step 9: Installing certificates..."
@@ -175,8 +176,10 @@ echo ""
 echo "Configuration Details:"
 echo "  Server IP: $SERVER_IP"
 echo "  VPN Port: $VPN_PORT (UDP)"
-echo "  VPN Network: $VPN_SUBNET/24"
-echo "  Server VPN IP: 10.10.10.1"
+echo "  OpenVPN Network: $VPN_SUBNET/24"
+echo "  OpenVPN Server IP: 10.10.20.1"
+echo "  WireGuard Network: 10.10.10.0/24 (separate)"
+echo "  WireGuard Server IP: 10.10.10.1"
 echo ""
 echo "Verification Commands:"
 echo "  Check status: systemctl status openvpn@server"
