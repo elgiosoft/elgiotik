@@ -28,6 +28,7 @@ class BandwidthPlan extends Model
         'idle_timeout',
         'description',
         'is_active',
+        'plan_hash',
     ];
 
     /**
@@ -44,6 +45,20 @@ class BandwidthPlan extends Model
         'idle_timeout' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Boot method to generate plan hash
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($plan) {
+            if (!$plan->plan_hash) {
+                $plan->plan_hash = \Illuminate\Support\Str::random(32);
+            }
+        });
+    }
 
     /**
      * Relationships

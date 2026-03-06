@@ -189,7 +189,7 @@ class WireGuardService
     :put "Added WireGuard firewall rule"
 }}
 
-# Allow API access only from VPN subnet
+# Allow API access from VPN subnet
 :if ([/ip firewall filter find comment="API from ElgioTik VPN"] = "") do={{
     /ip firewall filter add \\
         chain=input \\
@@ -199,7 +199,30 @@ class WireGuardService
         action=accept \\
         comment="API from ElgioTik VPN" \\
         place-before=0
-    :put "Added API access rule"
+    :put "Added API access rule from VPN"
+}}
+
+# Allow API access from local LAN (for local management)
+:local lanSubnet ""
+:foreach addr in=[/ip address find] do={{
+    :local addrVal [/ip address get \$addr address]
+    :local iface [/ip address get \$addr interface]
+    :if (\$iface != "wireguard-elgiotik" && \$addrVal ~ "192.168") do={{
+        :set lanSubnet [:pick \$addrVal 0 [:find \$addrVal "/"]]
+        :set lanSubnet ([:pick \$lanSubnet 0 [:find \$lanSubnet "." -1]] . ".0/24")
+    }}
+}}
+
+:if (\$lanSubnet != "" && [/ip firewall filter find comment="API from Local LAN"] = "") do={{
+    /ip firewall filter add \\
+        chain=input \\
+        protocol=tcp \\
+        dst-port=8728 \\
+        src-address=\$lanSubnet \\
+        action=accept \\
+        comment="API from Local LAN" \\
+        place-before=0
+    :put ("Added API access rule from LAN: " . \$lanSubnet)
 }}
 
 # Allow API-SSL access from VPN subnet
@@ -212,7 +235,20 @@ class WireGuardService
         action=accept \\
         comment="API-SSL from ElgioTik VPN" \\
         place-before=0
-    :put "Added API-SSL access rule"
+    :put "Added API-SSL access rule from VPN"
+}}
+
+# Allow API-SSL access from local LAN
+:if (\$lanSubnet != "" && [/ip firewall filter find comment="API-SSL from Local LAN"] = "") do={{
+    /ip firewall filter add \\
+        chain=input \\
+        protocol=tcp \\
+        dst-port=8729 \\
+        src-address=\$lanSubnet \\
+        action=accept \\
+        comment="API-SSL from Local LAN" \\
+        place-before=0
+    :put ("Added API-SSL access rule from LAN: " . \$lanSubnet)
 }}
 
 # Block API from internet (if not already blocked)
@@ -231,8 +267,13 @@ class WireGuardService
 
 # Configure API service
 :put "Step 6: Configuring API service..."
-/ip service set api address="\$vpnSubnet,127.0.0.1" disabled=no
-:put "API service configured (accessible from VPN only)"
+:if (\$lanSubnet != "") do={{
+    /ip service set api address="\$vpnSubnet,127.0.0.1,\$lanSubnet" disabled=no
+    :put ("API service configured (VPN + LAN: " . \$lanSubnet . ")")
+}} else={{
+    /ip service set api address="\$vpnSubnet,127.0.0.1" disabled=no
+    :put "API service configured (VPN only)"
+}}
 :put ""
 
 # Add route to server

@@ -186,7 +186,7 @@ class PortalController extends Controller
 
             // Prepare payment data
             $paymentData = [
-                'amount' => $bandwidthPlan->price*10,
+                'amount' => $bandwidthPlan->price,
                 'customer_phone' => $phoneNumber,
                 'payment_method' => $provider === 'mtn' ? 'mtn_mobile_money' : 'orange_money',
                 'currency' => 'XAF',
@@ -369,35 +369,114 @@ class PortalController extends Controller
     }
 
     /**
-     * Generate voucher after successful payment.
+     * Generate hotspot user after successful payment and send SMS.
      *
      * @param  Transaction  $transaction
-     * @return Voucher
+     * @return HotspotUser
      */
-    private function generateVoucherFromTransaction(Transaction $transaction): Voucher
+    private function generateVoucherFromTransaction(Transaction $transaction)
     {
-        // Generate voucher code
-        $voucherCode = 'VN-' . strtoupper(Str::random(4)) . '-' . rand(100, 999);
-
         // Get router from metadata
         $routerId = $transaction->metadata['router_id'] ?? Router::where('status', 'online')->first()->id;
+        $router = Router::find($routerId);
 
-        // Create voucher
-        $voucher = Voucher::create([
-            'code' => $voucherCode,
+        if (!$router) {
+            throw new \Exception('No router available');
+        }
+
+        // Find or create voucher profile for this bandwidth plan
+        $voucher = Voucher::firstOrCreate([
             'bandwidth_plan_id' => $transaction->bandwidth_plan_id,
             'router_id' => $routerId,
-            'price' => $transaction->amount,
             'status' => 'active',
-            'sold_at' => now(),
-            'notes' => 'Self-service purchase via ' . $transaction->payment_method,
+        ], [
+            'price' => $transaction->amount,
+            'user_capacity' => 1000, // Default capacity
+            'users_generated' => 0,
+            'notes' => 'Auto-created for self-service purchases',
         ]);
 
-        // Link voucher to transaction
+        // Generate unique hotspot credentials
+        $username = 'user_' . strtolower(Str::random(8));
+        $password = Str::random(12);
+
+        // Create hotspot user
+        $hotspotUser = HotspotUser::create([
+            'voucher_id' => $voucher->id,
+            'router_id' => $routerId,
+            'bandwidth_plan_id' => $transaction->bandwidth_plan_id,
+            'username' => $username,
+            'password' => $password,
+            'status' => 'pending',
+            'synced_to_router' => false,
+            'sold_by' => null,
+            'sold_at' => now(),
+        ]);
+
+        // Try to create user on MikroTik router
+        try {
+            $mikrotik = new MikroTikService($router);
+            $success = $mikrotik->createHotspotUser(
+                $username,
+                $password,
+                $voucher->mikrotik_profile_id ?? $transaction->bandwidthPlan->name
+            );
+
+            if ($success) {
+                $hotspotUser->markAsSynced($username);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to sync hotspot user to router: ' . $e->getMessage());
+        }
+
+        // Send SMS with credentials
+        $this->sendCredentialsSMS($transaction->customer_phone, $username, $password, $transaction->bandwidthPlan);
+
+        // Update voucher users_generated count
+        $voucher->incrementUsersGenerated();
+
+        // Link to transaction
         $transaction->update(['voucher_id' => $voucher->id]);
         $transaction->markAsCompleted();
 
-        return $voucher;
+        return $hotspotUser;
+    }
+
+    /**
+     * Send SMS with hotspot credentials to customer.
+     *
+     * @param  string  $phoneNumber
+     * @param  string  $username
+     * @param  string  $password
+     * @param  BandwidthPlan  $plan
+     * @return void
+     */
+    private function sendCredentialsSMS(string $phoneNumber, string $username, string $password, BandwidthPlan $plan): void
+    {
+        try {
+            $elgioPay = new ElgioPayClient();
+
+            $message = "Your WiFi Access:\n"
+                . "Username: {$username}\n"
+                . "Password: {$password}\n"
+                . "Plan: {$plan->name}\n"
+                . "Speed: {$plan->download_speed}/{$plan->upload_speed}\n"
+                . "Connect to WiFi and login with these credentials.";
+
+            $result = $elgioPay->sendSMS($phoneNumber, $message);
+
+            Log::info('SMS sent successfully', [
+                'phone' => $phoneNumber,
+                'username' => $username,
+                'result' => $result,
+            ]);
+        } catch (ElgioPayException $e) {
+            Log::error('Failed to send SMS: ' . $e->getMessage(), [
+                'phone' => $phoneNumber,
+                'username' => $username,
+            ]);
+            // Don't throw exception - SMS failure shouldn't block the purchase
+        }
     }
 
     /**

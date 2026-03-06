@@ -38,6 +38,8 @@ class Router extends Model
         'vpn_config_script',
         'routeros_version',
         'vpn_type',
+        'router_hash',
+        'wallet_balance',
     ];
 
     /**
@@ -60,7 +62,22 @@ class Router extends Model
         'vpn_enabled' => 'boolean',
         'last_seen_at' => 'datetime',
         'vpn_last_handshake' => 'datetime',
+        'wallet_balance' => 'decimal:2',
     ];
+
+    /**
+     * Boot method to generate router hash
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($router) {
+            if (!$router->router_hash) {
+                $router->router_hash = \Illuminate\Support\Str::random(32);
+            }
+        });
+    }
 
     public function decryptedPassword(): string
     {
@@ -84,6 +101,11 @@ class Router extends Model
     public function userSessions(): HasMany
     {
         return $this->hasMany(UserSession::class);
+    }
+
+    public function routerTransactions(): HasMany
+    {
+        return $this->hasMany(RouterTransaction::class);
     }
 
     /**
@@ -157,13 +179,13 @@ class Router extends Model
      */
     public function usesVpn(): bool
     {
-        return $this->vpn_enabled && !empty($this->vpn_ip);
+        return $this->vpn_enabled && $this->vpn_ip !== null && $this->vpn_ip !== '';
     }
 
     /**
      * Get the IP address to use for connection (VPN if enabled, otherwise direct IP)
      */
-    public function getConnectionIp(): string
+    public function getConnectionIp(): ?string
     {
         return $this->usesVpn() ? $this->vpn_ip : $this->ip_address;
     }
@@ -228,5 +250,72 @@ class Router extends Model
             'openvpn' => 'OpenVPN',
             default => 'None',
         };
+    }
+
+    /**
+     * Wallet Methods
+     */
+
+    /**
+     * Add credit to router wallet
+     */
+    public function creditWallet(float $amount, ?int $transactionId = null, ?int $hotspotUserId = null, ?string $description = null, ?array $metadata = null): RouterTransaction
+    {
+        $newBalance = $this->wallet_balance + $amount;
+
+        $routerTransaction = $this->routerTransactions()->create([
+            'transaction_id' => $transactionId,
+            'hotspot_user_id' => $hotspotUserId,
+            'type' => 'credit',
+            'amount' => $amount,
+            'balance_after' => $newBalance,
+            'description' => $description ?? 'Wallet credit',
+            'metadata' => $metadata,
+        ]);
+
+        $this->update(['wallet_balance' => $newBalance]);
+
+        return $routerTransaction;
+    }
+
+    /**
+     * Deduct amount from router wallet
+     */
+    public function debitWallet(float $amount, ?string $reference = null, ?string $description = null, ?array $metadata = null): RouterTransaction
+    {
+        if ($amount > $this->wallet_balance) {
+            throw new \Exception('Insufficient wallet balance');
+        }
+
+        $newBalance = $this->wallet_balance - $amount;
+
+        $routerTransaction = $this->routerTransactions()->create([
+            'type' => 'debit',
+            'amount' => $amount,
+            'balance_after' => $newBalance,
+            'description' => $description ?? 'Wallet withdrawal',
+            'reference' => $reference,
+            'metadata' => $metadata,
+        ]);
+
+        $this->update(['wallet_balance' => $newBalance]);
+
+        return $routerTransaction;
+    }
+
+    /**
+     * Get wallet balance
+     */
+    public function getWalletBalance(): float
+    {
+        return (float) $this->wallet_balance;
+    }
+
+    /**
+     * Check if wallet has sufficient balance
+     */
+    public function hasSufficientBalance(float $amount): bool
+    {
+        return $this->wallet_balance >= $amount;
     }
 }

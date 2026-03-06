@@ -17,13 +17,19 @@ class HotspotUser extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'username',
-        'password',
+        'voucher_id',
         'router_id',
         'bandwidth_plan_id',
         'customer_id',
-        'voucher_id',
+        'username',
+        'password',
         'status',
+        'transaction_id',
+        'mikrotik_user_id',
+        'synced_to_router',
+        'sync_error',
+        'activated_at',
+        'expires_at',
         'mac_address',
         'ip_address',
         'last_login_at',
@@ -31,9 +37,11 @@ class HotspotUser extends Model
         'bytes_in',
         'bytes_out',
         'session_time',
-        'expires_at',
         'is_online',
+        'sold_by',
+        'sold_at',
         'created_by',
+        'notes',
     ];
 
     /**
@@ -51,13 +59,16 @@ class HotspotUser extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'synced_to_router' => 'boolean',
+        'is_online' => 'boolean',
+        'activated_at' => 'datetime',
+        'expires_at' => 'datetime',
+        'sold_at' => 'datetime',
         'last_login_at' => 'datetime',
         'last_logout_at' => 'datetime',
-        'expires_at' => 'datetime',
         'bytes_in' => 'integer',
         'bytes_out' => 'integer',
         'session_time' => 'integer',
-        'is_online' => 'boolean',
     ];
 
     /**
@@ -67,6 +78,16 @@ class HotspotUser extends Model
     public function router(): BelongsTo
     {
         return $this->belongsTo(Router::class);
+    }
+
+    public function voucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class);
+    }
+
+    public function soldBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sold_by');
     }
 
     public function bandwidthPlan(): BelongsTo
@@ -79,24 +100,24 @@ class HotspotUser extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function voucher(): BelongsTo
-    {
-        return $this->belongsTo(Voucher::class);
-    }
-
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function sessions(): HasMany
-    {
-        return $this->hasMany(UserSession::class);
-    }
-
     /**
      * Scopes
      */
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('status', 'paid');
+    }
 
     public function scopeActive($query)
     {
@@ -113,6 +134,26 @@ class HotspotUser extends Model
         return $query->where('status', 'expired');
     }
 
+    public function scopeSynced($query)
+    {
+        return $query->where('synced_to_router', true);
+    }
+
+    public function scopeNotSynced($query)
+    {
+        return $query->where('synced_to_router', false);
+    }
+
+    public function scopeForRouter($query, int $routerId)
+    {
+        return $query->where('router_id', $routerId);
+    }
+
+    public function scopeForVoucher($query, int $voucherId)
+    {
+        return $query->where('voucher_id', $voucherId);
+    }
+
     public function scopeOnline($query)
     {
         return $query->where('is_online', true);
@@ -121,11 +162,6 @@ class HotspotUser extends Model
     public function scopeOffline($query)
     {
         return $query->where('is_online', false);
-    }
-
-    public function scopeForRouter($query, int $routerId)
-    {
-        return $query->where('router_id', $routerId);
     }
 
     public function scopeForCustomer($query, int $customerId)
@@ -143,13 +179,54 @@ class HotspotUser extends Model
         return $query->where(function ($q) use ($search) {
             $q->where('username', 'like', "%{$search}%")
               ->orWhere('mac_address', 'like', "%{$search}%")
-              ->orWhere('ip_address', 'like', "%{$search}%");
+              ->orWhere('ip_address', 'like', "%{$search}%")
+              ->orWhere('transaction_id', 'like', "%{$search}%");
         });
     }
 
     /**
      * Helper Methods
      */
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->status === 'paid';
+    }
+
+    public function isSynced(): bool
+    {
+        return $this->synced_to_router === true;
+    }
+
+    public function markAsPaid(string $transactionId): void
+    {
+        $this->update([
+            'status' => 'paid',
+            'transaction_id' => $transactionId,
+        ]);
+    }
+
+    public function markAsSynced(string $mikrotikUserId): void
+    {
+        $this->update([
+            'synced_to_router' => true,
+            'mikrotik_user_id' => $mikrotikUserId,
+            'sync_error' => null,
+        ]);
+    }
+
+    public function markAsSyncFailed(string $error): void
+    {
+        $this->update([
+            'synced_to_router' => false,
+            'sync_error' => $error,
+        ]);
+    }
 
     public function isActive(): bool
     {
@@ -194,30 +271,6 @@ class HotspotUser extends Model
         ]);
     }
 
-    public function disable(): void
-    {
-        $this->update(['status' => 'disabled']);
-    }
-
-    public function enable(): void
-    {
-        if ($this->isExpired()) {
-            return;
-        }
-
-        $this->update(['status' => 'active']);
-    }
-
-    public function checkAndUpdateExpiration(): void
-    {
-        if ($this->expires_at && $this->expires_at->isPast() && !$this->isExpired()) {
-            $this->update([
-                'status' => 'expired',
-                'is_online' => false,
-            ]);
-        }
-    }
-
     public function updateUsageStats(int $bytesIn, int $bytesOut, int $sessionTime): void
     {
         $this->update([
@@ -254,29 +307,6 @@ class HotspotUser extends Model
         $seconds = $this->session_time % 60;
 
         return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
-    }
-
-    public function getDaysUntilExpiration(): ?int
-    {
-        if (!$this->expires_at) {
-            return null;
-        }
-
-        return now()->diffInDays($this->expires_at, false);
-    }
-
-    public function getHoursUntilExpiration(): ?int
-    {
-        if (!$this->expires_at) {
-            return null;
-        }
-
-        return now()->diffInHours($this->expires_at, false);
-    }
-
-    public function getTotalSessionsCount(): int
-    {
-        return $this->sessions()->count();
     }
 
     private function formatBytes(int $bytes): string

@@ -103,11 +103,18 @@
             <div class="bg-white rounded-xl shadow p-6">
                 <h3 class="text-lg font-medium text-gray-900 mb-6">Quick Actions</h3>
                 <div class="space-y-3">
-                    <a href="{{ route('vouchers.create') }}" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg px-4 py-3 flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition transform hover:scale-105">
+                    <a href="{{ route('routers.index') }}" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg px-4 py-3 flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-blue-700 transition transform hover:scale-105">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
                         </svg>
-                        <span class="font-medium">New Voucher</span>
+                        <span class="font-medium">Manage Routers</span>
+                    </a>
+
+                    <a href="{{ route('bandwidth-plans.index') }}" class="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-lg px-4 py-3 flex items-center justify-center space-x-2 hover:from-indigo-600 hover:to-indigo-700 transition transform hover:scale-105">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span class="font-medium">Bandwidth Plans</span>
                     </a>
 
                     <a href="{{ route('customers.create') }}" class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg px-4 py-3 flex items-center justify-center space-x-2 hover:from-green-600 hover:to-green-700 transition transform hover:scale-105">
@@ -124,11 +131,11 @@
                         <span class="font-medium">View Reports</span>
                     </a>
 
-                    <a href="{{ route('routers.index') }}" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg px-4 py-3 flex items-center justify-center space-x-2 hover:from-orange-600 hover:to-orange-700 transition transform hover:scale-105">
+                    <a href="{{ route('hotspot-users.index') }}" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg px-4 py-3 flex items-center justify-center space-x-2 hover:from-orange-600 hover:to-orange-700 transition transform hover:scale-105">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                         </svg>
-                        <span class="font-medium">Manage Routers</span>
+                        <span class="font-medium">Hotspot Users</span>
                     </a>
                 </div>
             </div>
@@ -191,33 +198,33 @@
 
         <!-- Recent Activity -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Recent Vouchers -->
+            <!-- Recent Voucher Profiles -->
             <div class="bg-white rounded-xl shadow p-6">
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-lg font-medium text-gray-900">Recent Vouchers</h3>
-                    <a href="{{ route('vouchers.index') }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium">View all</a>
+                    <h3 class="text-lg font-medium text-gray-900">Recent Voucher Profiles</h3>
+                    <a href="{{ route('routers.index') }}" class="text-sm text-blue-600 hover:text-blue-700 font-medium">View routers</a>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead>
                             <tr class="border-b border-gray-200">
-                                <th class="text-left py-3 px-2 text-xs font-semibold text-gray-700">Code</th>
+                                <th class="text-left py-3 px-2 text-xs font-semibold text-gray-700">ID</th>
                                 <th class="text-left py-3 px-2 text-xs font-semibold text-gray-700">Plan</th>
-                                <th class="text-left py-3 px-2 text-xs font-semibold text-gray-700">Customer</th>
+                                <th class="text-left py-3 px-2 text-xs font-semibold text-gray-700">Users</th>
                                 <th class="text-right py-3 px-2 text-xs font-semibold text-gray-700">Status</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse($recentVouchers as $voucher)
                             <tr class="hover:bg-gray-50 transition">
-                                <td class="py-3 px-2"><span class="font-mono text-xs font-semibold text-blue-600">{{ $voucher->code }}</span></td>
+                                <td class="py-3 px-2"><span class="font-mono text-xs font-semibold text-blue-600">#{{ $voucher->id }}</span></td>
                                 <td class="py-3 px-2 text-xs text-gray-900">{{ $voucher->bandwidthPlan->name ?? 'N/A' }}</td>
-                                <td class="py-3 px-2 text-xs text-gray-600">{{ $voucher->customer->name ?? 'Unsold' }}</td>
+                                <td class="py-3 px-2 text-xs text-gray-600">{{ $voucher->users_generated }}/{{ $voucher->user_capacity }}</td>
                                 <td class="py-3 px-2 text-right">
                                     @if($voucher->status === 'active')
                                     <span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Active</span>
-                                    @elseif($voucher->status === 'used')
-                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Used</span>
+                                    @elseif($voucher->status === 'inactive')
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-semibold rounded-full">Inactive</span>
                                     @elseif($voucher->status === 'expired')
                                     <span class="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full">Expired</span>
                                     @else
@@ -227,7 +234,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" class="py-8 text-center text-sm text-gray-500">No recent vouchers</td>
+                                <td colspan="4" class="py-8 text-center text-sm text-gray-500">No recent voucher profiles</td>
                             </tr>
                             @endforelse
                         </tbody>

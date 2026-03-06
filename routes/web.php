@@ -11,6 +11,7 @@ use App\Http\Controllers\HotspotUserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\GuestPortalController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,6 +23,15 @@ use App\Http\Controllers\PortalController;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+// Guest Portal Routes (MikroTik Hotspot Portal)
+Route::prefix('guest')->name('guest.')->group(function () {
+    Route::get('/{router_hash}/portal', [GuestPortalController::class, 'portal'])->name('portal');
+    Route::get('/routers/{router_hash}/plans', [GuestPortalController::class, 'plans'])->name('plans');
+    Route::post('/vouchers/{voucher_hash}/pay', [GuestPortalController::class, 'pay'])->name('pay');
+    Route::get('/payment-status', [GuestPortalController::class, 'paymentStatus'])->name('payment-status');
+    Route::post('/payment-callback', [GuestPortalController::class, 'paymentCallback'])->name('payment-callback');
+});
 
 // Public Captive Portal Routes (No Authentication Required)
 Route::prefix('portal')->name('portal.')->group(function () {
@@ -74,6 +84,33 @@ Route::middleware('auth')->group(function () {
         Route::post('/{router}/disable-vpn', [RouterController::class, 'disableVpn'])->name('disableVpn');
         Route::post('/{router}/regenerate-vpn', [RouterController::class, 'regenerateVpn'])->name('regenerateVpn');
         Route::get('/{router}/download-vpn-script', [RouterController::class, 'downloadVpnScript'])->name('downloadVpnScript');
+
+        // Wallet & Portal
+        Route::post('/{router}/withdraw', [RouterController::class, 'withdraw'])->name('withdraw');
+        Route::get('/{router}/download-portal', [RouterController::class, 'downloadPortal'])->name('downloadPortal');
+
+        // Voucher Management (under router)
+        Route::prefix('/{router}/vouchers')->name('vouchers.')->group(function () {
+            Route::get('/', [VoucherController::class, 'index'])->name('index');
+            Route::get('/create', [VoucherController::class, 'create'])->name('create');
+            Route::post('/', [VoucherController::class, 'store'])->name('store');
+            Route::get('/{voucher}', [VoucherController::class, 'show'])->name('show');
+            Route::get('/{voucher}/edit', [VoucherController::class, 'edit'])->name('edit');
+            Route::put('/{voucher}', [VoucherController::class, 'update'])->name('update');
+            Route::delete('/{voucher}', [VoucherController::class, 'destroy'])->name('destroy');
+
+            // Voucher Actions
+            Route::post('/{voucher}/activate', [VoucherController::class, 'activate'])->name('activate');
+            Route::post('/{voucher}/disable', [VoucherController::class, 'disable'])->name('disable');
+            Route::post('/{voucher}/enable', [VoucherController::class, 'enable'])->name('enable');
+            Route::post('/{voucher}/sync-profile', [VoucherController::class, 'syncProfile'])->name('syncProfile');
+
+            // Generate Hotspot Users
+            Route::get('/{voucher}/generate-users', [VoucherController::class, 'showGenerateUsers'])->name('showGenerateUsers');
+            Route::post('/{voucher}/generate-users', [VoucherController::class, 'generateUsers'])->name('generateUsers');
+            Route::post('/{voucher}/retry-sync', [VoucherController::class, 'retrySync'])->name('retrySync');
+            Route::get('/{voucher}/print', [VoucherController::class, 'print'])->name('print');
+        });
     });
 
     // Bandwidth Plans Management
@@ -102,25 +139,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/{customer}/active-services', [CustomerController::class, 'activeServices'])->name('activeServices');
     });
 
-    // Voucher Management
-    Route::prefix('vouchers')->name('vouchers.')->group(function () {
-        Route::get('/', [VoucherController::class, 'index'])->name('index');
-        Route::get('/create', [VoucherController::class, 'create'])->name('create');
-        Route::post('/', [VoucherController::class, 'store'])->name('store');
-        Route::get('/{voucher}', [VoucherController::class, 'show'])->name('show');
-        Route::get('/{voucher}/edit', [VoucherController::class, 'edit'])->name('edit');
-        Route::put('/{voucher}', [VoucherController::class, 'update'])->name('update');
-        Route::delete('/{voucher}', [VoucherController::class, 'destroy'])->name('destroy');
-
-        // Custom Voucher Actions
-        Route::post('/generate', [VoucherController::class, 'generate'])->name('generate');
-        Route::post('/batch-generate', [VoucherController::class, 'batchGenerate'])->name('batchGenerate');
-        Route::post('/{voucher}/activate', [VoucherController::class, 'activate'])->name('activate');
-        Route::post('/{voucher}/sell', [VoucherController::class, 'sell'])->name('sell');
-        Route::post('/{voucher}/disable', [VoucherController::class, 'disable'])->name('disable');
-        Route::post('/{voucher}/enable', [VoucherController::class, 'enable'])->name('enable');
-        Route::get('/{voucher}/print', [VoucherController::class, 'print'])->name('print');
-    });
 
     // Hotspot Users Management
     Route::prefix('hotspot-users')->name('hotspot-users.')->group(function () {

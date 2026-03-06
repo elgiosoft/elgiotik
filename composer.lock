@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "17c650d54dfe7b1923151d7d37d73fef",
+    "content-hash": "8c457481a30a98428eb5cc0230220423",
     "packages": [
         {
             "name": "brick/math",
@@ -510,16 +510,16 @@
         },
         {
             "name": "elgiosoft/elgiopay-php-sdk",
-            "version": "1.0.2",
+            "version": "1.0.4",
             "source": {
                 "type": "git",
                 "url": "git@github.com:elgiosoft/elgiopay-php-sdk.git",
-                "reference": "e8d3d54e344dd9524cdd7c993c5ea2ac8bf62d4f"
+                "reference": "910356cb9a12b8d1049a23fd109dd16c155e3b6d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/elgiosoft/elgiopay-php-sdk/zipball/e8d3d54e344dd9524cdd7c993c5ea2ac8bf62d4f",
-                "reference": "e8d3d54e344dd9524cdd7c993c5ea2ac8bf62d4f",
+                "url": "https://api.github.com/repos/elgiosoft/elgiopay-php-sdk/zipball/910356cb9a12b8d1049a23fd109dd16c155e3b6d",
+                "reference": "910356cb9a12b8d1049a23fd109dd16c155e3b6d",
                 "shasum": ""
             },
             "require": {
@@ -563,10 +563,10 @@
                 "xaf"
             ],
             "support": {
-                "source": "https://github.com/elgiosoft/elgiopay-php-sdk/tree/1.0.2",
+                "source": "https://github.com/elgiosoft/elgiopay-php-sdk/tree/1.0.4",
                 "issues": "https://github.com/elgiosoft/elgiopay-php-sdk/issues"
             },
-            "time": "2025-11-11T12:53:14+00:00"
+            "time": "2026-03-03T10:41:19+00:00"
         },
         {
             "name": "evilfreelancer/routeros-api-php",

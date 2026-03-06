@@ -3,209 +3,351 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print Voucher - {{ $voucher->code }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Print Vouchers - Profile #{{ $voucher->id }}</title>
     <style>
-        @media print {
-            body {
-                margin: 0;
-                padding: 20mm;
-            }
-
-            .no-print {
-                display: none !important;
-            }
-
-            .print-voucher {
-                page-break-after: always;
-                page-break-inside: avoid;
-            }
-
-            .print-voucher:last-child {
-                page-break-after: auto;
-            }
-
-            @page {
-                size: A4;
-                margin: 0;
-            }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        .voucher-card {
-            border: 2px dashed #cbd5e0;
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            padding: 20px;
+        }
+
+        .no-print {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f3f4f6;
             border-radius: 8px;
         }
 
-        .voucher-perforation {
-            border-top: 2px dashed #e2e8f0;
-            position: relative;
+        .no-print button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 10px;
         }
 
-        .voucher-perforation::before,
-        .voucher-perforation::after {
-            content: '';
-            position: absolute;
-            top: -8px;
-            width: 16px;
-            height: 16px;
+        .no-print button:hover {
+            background: #4338ca;
+        }
+
+        .no-print a {
+            color: #4f46e5;
+            text-decoration: none;
+            padding: 10px 20px;
+            border: 1px solid #4f46e5;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .header-info {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .header-info h1 {
+            font-size: 24px;
+            color: #111827;
+            margin-bottom: 10px;
+        }
+
+        .header-info p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .voucher-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .voucher-card {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f9fafb;
+            page-break-inside: avoid;
+        }
+
+        .voucher-card .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .voucher-card .header .company {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .voucher-card .header .plan-name {
+            font-size: 14px;
+            opacity: 0.95;
+        }
+
+        .voucher-card .credentials {
             background: white;
-            border: 2px dashed #cbd5e0;
-            border-radius: 50%;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
         }
 
-        .voucher-perforation::before {
-            left: -8px;
+        .voucher-card .credential-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
         }
 
-        .voucher-perforation::after {
-            right: -8px;
+        .voucher-card .credential-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .voucher-card .credential-label {
+            font-size: 11px;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .voucher-card .credential-value {
+            font-size: 16px;
+            color: #111827;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .voucher-card .details {
+            background: #fef3c7;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #92400e;
+            margin-bottom: 10px;
+        }
+
+        .voucher-card .details .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .voucher-card .details .detail-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .voucher-card .details .detail-label {
+            font-weight: 500;
+        }
+
+        .voucher-card .footer {
+            text-align: center;
+            font-size: 10px;
+            color: #9ca3af;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            page-break-before: avoid;
+        }
+
+        .summary h2 {
+            font-size: 18px;
+            color: #111827;
+            margin-bottom: 15px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .summary-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .summary-item .label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .summary-item .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        @media print {
+            body {
+                padding: 10px;
+            }
+
+            .no-print {
+                display: none;
+            }
+
+            .voucher-grid {
+                gap: 10px;
+            }
+
+            .voucher-card {
+                padding: 10px;
+                break-inside: avoid;
+            }
+
+            @page {
+                margin: 10mm;
+                size: A4;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .voucher-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
-<body class="bg-white">
-    <!-- Print Button (hidden when printing) -->
-    <div class="no-print fixed top-4 right-4 z-50">
-        <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-            </svg>
-            Print Voucher
-        </button>
+<body>
+    <!-- Control Buttons (hidden when printing) -->
+    <div class="no-print">
+        <button onclick="window.print()">Print Vouchers</button>
+        <a href="{{ route('routers.vouchers.show', [$router, $voucher]) }}">Back to Profile</a>
     </div>
 
-    <!-- Voucher Card -->
-    <div class="print-voucher max-w-2xl mx-auto p-8">
-        <div class="voucher-card bg-white p-8">
-            <!-- Header -->
-            <div class="text-center mb-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">WiFi Voucher</h1>
-                <p class="text-sm text-gray-600">Internet Access Code</p>
-            </div>
+    <!-- Header Info -->
+    <div class="header-info">
+        <h1>Hotspot Vouchers</h1>
+        <p><strong>Router:</strong> {{ $router->name }} | <strong>Profile:</strong> {{ $voucher->bandwidthPlan->name }} | <strong>Generated:</strong> {{ now()->format('M d, Y h:i A') }}</p>
+    </div>
 
-            <!-- Company Info (if available) -->
-            <div class="text-center mb-8">
-                <h2 class="text-xl font-semibold text-gray-800">{{ config('app.name', 'ElgioTik') }}</h2>
-                <p class="text-sm text-gray-600 mt-1">Hotspot Network Access</p>
-            </div>
+    <!-- Voucher Cards Grid -->
+    @if($voucher->hotspotUsers->count() > 0)
+        <div class="voucher-grid">
+            @foreach($voucher->hotspotUsers as $user)
+                <div class="voucher-card">
+                    <!-- Card Header -->
+                    <div class="header">
+                        <div class="company">WiFi Hotspot</div>
+                        <div class="plan-name">{{ $voucher->bandwidthPlan->name }}</div>
+                    </div>
 
-            <!-- Voucher Code Section -->
-            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-6 mb-6">
-                <div class="text-center">
-                    <p class="text-sm font-medium text-gray-700 mb-2">Your Access Code</p>
-                    <div class="bg-white rounded-lg p-4 border-2 border-indigo-200">
-                        <p class="text-3xl font-bold font-mono text-indigo-600 tracking-wider">{{ $voucher->code }}</p>
+                    <!-- Credentials -->
+                    <div class="credentials">
+                        <div class="credential-row">
+                            <div>
+                                <div class="credential-label">Username</div>
+                                <div class="credential-value">{{ $user->username }}</div>
+                            </div>
+                        </div>
+                        <div class="credential-row">
+                            <div>
+                                <div class="credential-label">Password</div>
+                                <div class="credential-value">{{ $user->password }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Plan Details -->
+                    <div class="details">
+                        <div class="detail-item">
+                            <span class="detail-label">Speed:</span>
+                            <span>{{ $voucher->bandwidthPlan->download_speed }}/{{ $voucher->bandwidthPlan->upload_speed }}</span>
+                        </div>
+                        @if($voucher->bandwidthPlan->validity_period)
+                            <div class="detail-item">
+                                <span class="detail-label">Valid for:</span>
+                                <span>{{ $voucher->bandwidthPlan->validity_period }} hours</span>
+                            </div>
+                        @endif
+                        @if($voucher->bandwidthPlan->data_limit)
+                            <div class="detail-item">
+                                <span class="detail-label">Data limit:</span>
+                                <span>{{ $voucher->bandwidthPlan->data_limit }}</span>
+                            </div>
+                        @endif
+                        <div class="detail-item">
+                            <span class="detail-label">Price:</span>
+                            <span>${{ number_format($voucher->price, 2) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="footer">
+                        Voucher #{{ $user->id }} | {{ $user->created_at->format('M d, Y') }}
                     </div>
                 </div>
-            </div>
-
-            <!-- QR Code -->
-            <div class="flex justify-center mb-6">
-                <div class="bg-white p-4 rounded-lg border-2 border-gray-300">
-                    <div id="qrcode"></div>
-                </div>
-            </div>
-            <p class="text-center text-xs text-gray-500 mb-6">Scan QR code to copy voucher code</p>
-
-            <!-- Perforation Line -->
-            <div class="voucher-perforation my-6"></div>
-
-            <!-- Voucher Details -->
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                    <p class="text-xs font-medium text-gray-500 uppercase">Plan</p>
-                    <p class="text-sm font-semibold text-gray-900 mt-1">{{ $voucher->bandwidthPlan->name ?? 'N/A' }}</p>
-                </div>
-                @if($voucher->bandwidthPlan->speed ?? null)
-                <div>
-                    <p class="text-xs font-medium text-gray-500 uppercase">Speed</p>
-                    <p class="text-sm font-semibold text-gray-900 mt-1">{{ $voucher->bandwidthPlan->speed }}</p>
-                </div>
-                @endif
-                <div>
-                    <p class="text-xs font-medium text-gray-500 uppercase">Price</p>
-                    <p class="text-sm font-semibold text-gray-900 mt-1">${{ number_format($voucher->price, 2) }}</p>
-                </div>
-                <div>
-                    <p class="text-xs font-medium text-gray-500 uppercase">Valid Until</p>
-                    <p class="text-sm font-semibold text-gray-900 mt-1">
-                        @if($voucher->expires_at)
-                            {{ $voucher->expires_at->format('M d, Y') }}
-                        @else
-                            See Plan Details
-                        @endif
-                    </p>
-                </div>
-            </div>
-
-            <!-- Instructions -->
-            <div class="bg-gray-50 rounded-lg p-4 mb-4">
-                <h3 class="text-sm font-semibold text-gray-900 mb-3">How to Connect:</h3>
-                <ol class="text-xs text-gray-700 space-y-2">
-                    <li class="flex items-start">
-                        <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full mr-2 text-xs font-bold">1</span>
-                        <span>Connect to the WiFi network</span>
-                    </li>
-                    <li class="flex items-start">
-                        <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full mr-2 text-xs font-bold">2</span>
-                        <span>Open your web browser</span>
-                    </li>
-                    <li class="flex items-start">
-                        <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full mr-2 text-xs font-bold">3</span>
-                        <span>Enter the voucher code above when prompted</span>
-                    </li>
-                    <li class="flex items-start">
-                        <span class="flex-shrink-0 w-5 h-5 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full mr-2 text-xs font-bold">4</span>
-                        <span>Enjoy your internet access!</span>
-                    </li>
-                </ol>
-            </div>
-
-            <!-- Terms & Conditions -->
-            <div class="border-t border-gray-200 pt-4">
-                <h4 class="text-xs font-semibold text-gray-900 mb-2">Terms & Conditions:</h4>
-                <ul class="text-xs text-gray-600 space-y-1">
-                    <li>" Voucher is valid for single use only</li>
-                    <li>" No refunds or exchanges</li>
-                    <li>" Internet speed may vary based on network conditions</li>
-                    <li>" Fair usage policy applies</li>
-                    <li>" Keep this voucher safe and secure</li>
-                </ul>
-            </div>
-
-            <!-- Footer -->
-            <div class="mt-6 pt-4 border-t border-gray-200 text-center">
-                <p class="text-xs text-gray-500">
-                    For support, please contact your network administrator
-                </p>
-                <p class="text-xs text-gray-400 mt-1">
-                    Generated on {{ now()->format('F d, Y \a\t H:i') }}
-                </p>
-            </div>
+            @endforeach
         </div>
 
-        <!-- Cut Here Line -->
-        <div class="text-center mt-8 no-print">
-            <p class="text-sm text-gray-500 italic"> - - - - - Cut along the dotted line - - - - - </p>
+        <!-- Summary -->
+        <div class="summary">
+            <h2>Batch Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="label">Total Vouchers</div>
+                    <div class="value">{{ $voucher->hotspotUsers->count() }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Profile</div>
+                    <div class="value" style="font-size: 16px;">{{ $voucher->bandwidthPlan->name }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Price Each</div>
+                    <div class="value">${{ number_format($voucher->price, 2) }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="label">Total Value</div>
+                    <div class="value">${{ number_format($voucher->price * $voucher->hotspotUsers->count(), 2) }}</div>
+                </div>
+            </div>
         </div>
-    </div>
-
-    <!-- QR Code Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            new QRCode(document.getElementById("qrcode"), {
-                text: "{{ $voucher->code }}",
-                width: 150,
-                height: 150,
-                colorDark: "#000000",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
-            });
-        });
-
-        // Auto-print dialog when page loads (optional)
-        // Uncomment the line below if you want the print dialog to open automatically
-        // window.onload = function() { window.print(); }
-    </script>
+    @else
+        <div style="text-align: center; padding: 60px 20px; color: #6b7280;">
+            <svg style="width: 64px; height: 64px; margin: 0 auto 20px; color: #d1d5db;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+            <h3 style="font-size: 18px; color: #111827; margin-bottom: 10px;">No Users Generated</h3>
+            <p style="margin-bottom: 20px;">This profile doesn't have any hotspot users yet.</p>
+            <a href="{{ route('routers.vouchers.showGenerateUsers', [$router, $voucher]) }}" style="display: inline-block; background: #4f46e5; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Generate Users</a>
+        </div>
+    @endif
 </body>
 </html>

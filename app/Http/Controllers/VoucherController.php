@@ -6,25 +6,34 @@ use App\Models\Voucher;
 use App\Models\Router;
 use App\Models\Customer;
 use App\Models\BandwidthPlan;
+use App\Services\HotspotUserService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Exception;
 
 class VoucherController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     * Supports search, filtering by status, router, customer, bandwidth plan, and pagination.
-     */
-    public function index(Request $request)
-    {
-        $query = Voucher::with(['bandwidthPlan', 'router', 'customer', 'soldBy']);
+    protected $hotspotUserService;
 
-        // Search by voucher code
+    public function __construct(HotspotUserService $hotspotUserService)
+    {
+        $this->hotspotUserService = $hotspotUserService;
+    }
+
+    /**
+     * Display vouchers for a specific router
+     */
+    public function index(Request $request, Router $router)
+    {
+        $query = $router->vouchers()->with(['bandwidthPlan', 'customer', 'hotspotUsers']);
+
+        // Search by notes or ID
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where('code', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('id', $search)
+                  ->orWhere('notes', 'like', "%{$search}%");
+            });
         }
 
         // Filter by status
@@ -32,37 +41,9 @@ class VoucherController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter by router
-        if ($request->filled('router_id')) {
-            $query->where('router_id', $request->router_id);
-        }
-
-        // Filter by customer
-        if ($request->filled('customer_id')) {
-            $query->where('customer_id', $request->customer_id);
-        }
-
         // Filter by bandwidth plan
         if ($request->filled('bandwidth_plan_id')) {
             $query->where('bandwidth_plan_id', $request->bandwidth_plan_id);
-        }
-
-        // Filter by sold status
-        if ($request->filled('sold_status')) {
-            if ($request->sold_status === 'sold') {
-                $query->whereNotNull('sold_at');
-            } elseif ($request->sold_status === 'unsold') {
-                $query->whereNull('sold_at');
-            }
-        }
-
-        // Filter by activated status
-        if ($request->filled('activated_status')) {
-            if ($request->activated_status === 'activated') {
-                $query->whereNotNull('activated_at');
-            } elseif ($request->activated_status === 'not_activated') {
-                $query->whereNull('activated_at');
-            }
         }
 
         // Sorting
@@ -75,418 +56,358 @@ class VoucherController extends Controller
         $vouchers = $query->paginate($perPage)->withQueryString();
 
         // Get filter options for the view
-        $routers = Router::active()->orderBy('name')->get();
-        $customers = Customer::active()->orderBy('name')->get();
         $bandwidthPlans = BandwidthPlan::active()->orderBy('name')->get();
 
-        return view('vouchers.index', compact('vouchers', 'routers', 'customers', 'bandwidthPlans'));
+        return view('vouchers.index', compact('vouchers', 'router', 'bandwidthPlans'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Show the form for creating a new voucher (profile)
      */
-    public function create()
+    public function create(Router $router)
     {
-        $routers = Router::active()->orderBy('name')->get();
         $bandwidthPlans = BandwidthPlan::active()->orderBy('name')->get();
 
-        return view('vouchers.create', compact('routers', 'bandwidthPlans'));
+        return view('vouchers.create', compact('router', 'bandwidthPlans'));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created voucher (profile)
      */
-    public function store(Request $request)
+    public function store(Request $request, Router $router)
     {
         $validated = $request->validate([
             'bandwidth_plan_id' => 'required|exists:bandwidth_plans,id',
-            'router_id' => 'required|exists:routers,id',
+            'user_capacity' => 'required|integer|min:1|max:1000',
             'price' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:500',
+            'auto_sync' => 'boolean',
         ]);
 
-        // Generate unique voucher code
-        $code = $this->generateUniqueVoucherCode();
+        try {
+            // Get bandwidth plan to set price if not provided
+            $bandwidthPlan = BandwidthPlan::findOrFail($validated['bandwidth_plan_id']);
+            $price = $validated['price'] ?? $bandwidthPlan->price;
 
-        // Get bandwidth plan to set price if not provided
-        $bandwidthPlan = BandwidthPlan::findOrFail($validated['bandwidth_plan_id']);
-        $price = $validated['price'] ?? $bandwidthPlan->price;
+            $voucher = Voucher::create([
+                'bandwidth_plan_id' => $validated['bandwidth_plan_id'],
+                'router_id' => $router->id,
+                'price' => $price,
+                'user_capacity' => $validated['user_capacity'],
+                'users_generated' => 0,
+                'status' => 'active',
+                'notes' => $validated['notes'] ?? null,
+            ]);
 
-        $voucher = Voucher::create([
-            'code' => $code,
-            'bandwidth_plan_id' => $validated['bandwidth_plan_id'],
-            'router_id' => $validated['router_id'],
-            'price' => $price,
-            'status' => 'active',
-            'notes' => $validated['notes'] ?? null,
-        ]);
+            // Auto-sync profile to router if requested
+            if ($request->boolean('auto_sync', true)) {
+                $syncResult = $this->hotspotUserService->syncProfileToRouter($voucher);
 
-        return redirect()
-            ->route('vouchers.show', $voucher)
-            ->with('success', 'Voucher created successfully.');
+                if (!$syncResult['success']) {
+                    return redirect()
+                        ->route('routers.vouchers.show', [$router, $voucher])
+                        ->with('warning', 'Voucher created but profile sync failed: ' . $syncResult['message']);
+                }
+            }
+
+            return redirect()
+                ->route('routers.vouchers.show', [$router, $voucher])
+                ->with('success', 'Voucher profile created successfully.');
+
+        } catch (Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to create voucher: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Display the specified resource.
-     * Shows voucher details with usage history.
+     * Display the specified voucher with hotspot users
      */
-    public function show(Voucher $voucher)
+    public function show(Router $router, Voucher $voucher)
     {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
         $voucher->load([
             'bandwidthPlan',
-            'router',
             'customer',
-            'soldBy',
-            'hotspotUsers.sessions' => function ($query) {
-                $query->latest()->limit(10);
+            'hotspotUsers' => function ($query) {
+                $query->latest();
             }
         ]);
 
-        // Get usage statistics
-        $usageStats = [
-            'total_sessions' => $voucher->hotspotUsers->sum(function ($user) {
-                return $user->sessions->count();
-            }),
-            'total_bytes_in' => $voucher->hotspotUsers->sum('bytes_in'),
-            'total_bytes_out' => $voucher->hotspotUsers->sum('bytes_out'),
-            'total_session_time' => $voucher->hotspotUsers->sum('session_time'),
-            'online_users' => $voucher->hotspotUsers->where('is_online', true)->count(),
+        // Get statistics
+        $stats = [
+            'total_users' => $voucher->hotspotUsers()->count(),
+            'pending_users' => $voucher->hotspotUsers()->pending()->count(),
+            'paid_users' => $voucher->hotspotUsers()->paid()->count(),
+            'synced_users' => $voucher->hotspotUsers()->synced()->count(),
+            'failed_syncs' => $voucher->hotspotUsers()->notSynced()->count(),
+            'remaining_capacity' => $voucher->getRemainingCapacity(),
         ];
 
-        return view('vouchers.show', compact('voucher', 'usageStats'));
+        return view('vouchers.show', compact('router', 'voucher', 'stats'));
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Show the form for editing the voucher
      */
-    public function edit(Voucher $voucher)
+    public function edit(Router $router, Voucher $voucher)
     {
-        $routers = Router::active()->orderBy('name')->get();
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
         $bandwidthPlans = BandwidthPlan::active()->orderBy('name')->get();
         $customers = Customer::active()->orderBy('name')->get();
 
-        return view('vouchers.edit', compact('voucher', 'routers', 'bandwidthPlans', 'customers'));
+        return view('vouchers.edit', compact('router', 'voucher', 'bandwidthPlans', 'customers'));
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the voucher
      */
-    public function update(Request $request, Voucher $voucher)
+    public function update(Request $request, Router $router, Voucher $voucher)
     {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
         $validated = $request->validate([
             'bandwidth_plan_id' => 'required|exists:bandwidth_plans,id',
-            'router_id' => 'required|exists:routers,id',
             'customer_id' => 'nullable|exists:customers,id',
+            'user_capacity' => 'required|integer|min:' . $voucher->users_generated,
             'price' => 'required|numeric|min:0',
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $voucher->update($validated);
-
-        return redirect()
-            ->route('vouchers.show', $voucher)
-            ->with('success', 'Voucher updated successfully.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     * Only allows deletion if voucher has not been used.
-     */
-    public function destroy(Voucher $voucher)
-    {
-        // Check if voucher has been used
-        if ($voucher->isUsed() || $voucher->isActivated()) {
-            return redirect()
-                ->route('vouchers.index')
-                ->with('error', 'Cannot delete a voucher that has been used or activated.');
-        }
-
-        // Check if voucher has been sold
-        if ($voucher->isSold()) {
-            return redirect()
-                ->route('vouchers.index')
-                ->with('error', 'Cannot delete a voucher that has been sold.');
-        }
-
-        $code = $voucher->code;
-        $voucher->delete();
-
-        return redirect()
-            ->route('vouchers.index')
-            ->with('success', "Voucher {$code} deleted successfully.");
-    }
-
-    /**
-     * Show the batch generation form.
-     */
-    public function generate()
-    {
-        $routers = Router::active()->orderBy('name')->get();
-        $bandwidthPlans = BandwidthPlan::active()->orderBy('name')->get();
-
-        return view('vouchers.generate', compact('routers', 'bandwidthPlans'));
-    }
-
-    /**
-     * Generate multiple vouchers at once.
-     */
-    public function batchGenerate(Request $request)
-    {
-        $validated = $request->validate([
-            'quantity' => 'required|integer|min:1|max:1000',
-            'bandwidth_plan_id' => 'required|exists:bandwidth_plans,id',
-            'router_id' => 'required|exists:routers,id',
-            'price' => 'nullable|numeric|min:0',
-            'notes' => 'nullable|string|max:500',
-            'code_prefix' => 'nullable|string|max:10|alpha_dash',
-            'code_length' => 'nullable|integer|min:6|max:20',
-        ]);
-
-        // Get bandwidth plan to set price if not provided
-        $bandwidthPlan = BandwidthPlan::findOrFail($validated['bandwidth_plan_id']);
-        $price = $validated['price'] ?? $bandwidthPlan->price;
-        $codeLength = $validated['code_length'] ?? 12;
-        $codePrefix = $validated['code_prefix'] ?? '';
-
-        $vouchers = [];
-        $generatedCodes = [];
-
-        DB::beginTransaction();
-
         try {
-            for ($i = 0; $i < $validated['quantity']; $i++) {
-                // Generate unique code
-                do {
-                    $code = $this->generateVoucherCode($codeLength, $codePrefix);
-                } while (
-                    in_array($code, $generatedCodes) ||
-                    Voucher::where('code', $code)->exists()
-                );
-
-                $generatedCodes[] = $code;
-
-                $vouchers[] = [
-                    'code' => $code,
-                    'bandwidth_plan_id' => $validated['bandwidth_plan_id'],
-                    'router_id' => $validated['router_id'],
-                    'price' => $price,
-                    'status' => 'active',
-                    'notes' => $validated['notes'] ?? null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-            }
-
-            // Bulk insert vouchers
-            Voucher::insert($vouchers);
-
-            DB::commit();
+            $voucher->update($validated);
 
             return redirect()
-                ->route('vouchers.index', ['search' => $codePrefix])
-                ->with('success', "{$validated['quantity']} vouchers generated successfully.");
+                ->route('routers.vouchers.show', [$router, $voucher])
+                ->with('success', 'Voucher updated successfully.');
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return redirect()
-                ->back()
+        } catch (Exception $e) {
+            return back()
                 ->withInput()
-                ->with('error', 'Failed to generate vouchers: ' . $e->getMessage());
+                ->with('error', 'Failed to update voucher: ' . $e->getMessage());
         }
     }
 
     /**
-     * Activate a voucher for a customer.
+     * Delete the voucher
      */
-    public function activate(Request $request, Voucher $voucher)
+    public function destroy(Router $router, Voucher $voucher)
     {
-        $validated = $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
-            'mac_address' => 'nullable|mac_address',
-        ]);
-
-        // Check if voucher can be activated
-        if ($voucher->isUsed()) {
-            return redirect()
-                ->back()
-                ->with('error', 'Voucher has already been used.');
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
         }
 
-        if ($voucher->isDisabled()) {
+        // Check if voucher has generated users
+        if ($voucher->users_generated > 0) {
             return redirect()
-                ->back()
-                ->with('error', 'Voucher is disabled and cannot be activated.');
+                ->route('routers.vouchers.index', $router)
+                ->with('error', 'Cannot delete a voucher that has generated users.');
         }
-
-        if ($voucher->isExpired()) {
-            return redirect()
-                ->back()
-                ->with('error', 'Voucher has expired.');
-        }
-
-        if ($voucher->isActivated()) {
-            return redirect()
-                ->back()
-                ->with('error', 'Voucher has already been activated.');
-        }
-
-        DB::beginTransaction();
 
         try {
-            // Update voucher
-            $voucher->update([
-                'customer_id' => $validated['customer_id'] ?? $voucher->customer_id,
-                'mac_address' => $validated['mac_address'] ?? $voucher->mac_address,
-            ]);
-
-            // Activate voucher (sets status to 'used', activated_at, and expires_at)
-            $voucher->activate();
-
-            DB::commit();
+            $voucher->delete();
 
             return redirect()
-                ->route('vouchers.show', $voucher)
-                ->with('success', 'Voucher activated successfully.');
+                ->route('routers.vouchers.index', $router)
+                ->with('success', 'Voucher deleted successfully.');
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return redirect()
-                ->back()
-                ->with('error', 'Failed to activate voucher: ' . $e->getMessage());
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to delete voucher: ' . $e->getMessage());
         }
     }
 
     /**
-     * Mark voucher as sold.
+     * Sync profile to MikroTik router
      */
-    public function sell(Request $request, Voucher $voucher)
+    public function syncProfile(Router $router, Voucher $voucher)
     {
-        $validated = $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
-            'price' => 'nullable|numeric|min:0',
-        ]);
-
-        // Check if voucher can be sold
-        if ($voucher->isSold()) {
-            return redirect()
-                ->back()
-                ->with('error', 'Voucher has already been sold.');
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
         }
 
-        if ($voucher->isDisabled()) {
-            return redirect()
-                ->back()
-                ->with('error', 'Disabled voucher cannot be sold.');
-        }
+        try {
+            $result = $this->hotspotUserService->syncProfileToRouter($voucher);
 
-        // Update price if provided
-        if (isset($validated['price'])) {
-            $voucher->price = $validated['price'];
-        }
-
-        // Mark as sold
-        $voucher->markAsSold(auth()->id(), $validated['customer_id'] ?? null);
-
-        return redirect()
-            ->route('vouchers.show', $voucher)
-            ->with('success', 'Voucher marked as sold successfully.');
-    }
-
-    /**
-     * Disable a voucher.
-     */
-    public function disable(Voucher $voucher)
-    {
-        if ($voucher->isDisabled()) {
-            return redirect()
-                ->back()
-                ->with('info', 'Voucher is already disabled.');
-        }
-
-        $voucher->disable();
-
-        return redirect()
-            ->route('vouchers.show', $voucher)
-            ->with('success', 'Voucher disabled successfully.');
-    }
-
-    /**
-     * Enable a voucher.
-     */
-    public function enable(Voucher $voucher)
-    {
-        if ($voucher->isExpired()) {
-            return redirect()
-                ->back()
-                ->with('error', 'Cannot enable an expired voucher.');
-        }
-
-        if (!$voucher->isDisabled()) {
-            return redirect()
-                ->back()
-                ->with('info', 'Voucher is already enabled.');
-        }
-
-        $voucher->enable();
-
-        return redirect()
-            ->route('vouchers.show', $voucher)
-            ->with('success', 'Voucher enabled successfully.');
-    }
-
-    /**
-     * Generate printable voucher view.
-     */
-    public function print(Request $request)
-    {
-        $validated = $request->validate([
-            'voucher_ids' => 'required|array',
-            'voucher_ids.*' => 'exists:vouchers,id',
-        ]);
-
-        $vouchers = Voucher::with(['bandwidthPlan', 'router'])
-            ->whereIn('id', $validated['voucher_ids'])
-            ->get();
-
-        return view('vouchers.print', compact('vouchers'));
-    }
-
-    /**
-     * Generate a unique voucher code.
-     */
-    private function generateUniqueVoucherCode(int $length = 12, string $prefix = ''): string
-    {
-        $maxAttempts = 100;
-        $attempts = 0;
-
-        do {
-            $code = $this->generateVoucherCode($length, $prefix);
-            $attempts++;
-
-            if ($attempts >= $maxAttempts) {
-                throw new \RuntimeException('Unable to generate unique voucher code after ' . $maxAttempts . ' attempts.');
+            if ($result['success']) {
+                return back()->with('success', 'Profile synced to router successfully.');
+            } else {
+                return back()->with('error', 'Failed to sync profile: ' . $result['message']);
             }
-        } while (Voucher::where('code', $code)->exists());
 
-        return $code;
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to sync profile: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Generate a voucher code.
+     * Show form to generate hotspot users
      */
-    private function generateVoucherCode(int $length = 12, string $prefix = ''): string
+    public function showGenerateUsers(Router $router, Voucher $voucher)
     {
-        // Generate alphanumeric code (uppercase letters and numbers)
-        $characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing characters (I, O, 0, 1)
-        $codeLength = $length - strlen($prefix);
-
-        $code = '';
-        for ($i = 0; $i < $codeLength; $i++) {
-            $code .= $characters[random_int(0, strlen($characters) - 1)];
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
         }
 
-        return strtoupper($prefix . $code);
+        $remainingCapacity = $voucher->getRemainingCapacity();
+
+        return view('vouchers.generate-users', compact('router', 'voucher', 'remainingCapacity'));
+    }
+
+    /**
+     * Generate hotspot users from voucher
+     */
+    public function generateUsers(Request $request, Router $router, Voucher $voucher)
+    {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'count' => 'required|integer|min:1|max:' . $voucher->getRemainingCapacity(),
+        ]);
+
+        try {
+            $result = $this->hotspotUserService->generateHotspotUsers(
+                $voucher,
+                $validated['count'],
+                auth()->id()
+            );
+
+            if ($result['success']) {
+                $message = $result['message'];
+
+                if (count($result['errors']) > 0) {
+                    return redirect()
+                        ->route('routers.vouchers.show', [$router, $voucher])
+                        ->with('warning', $message);
+                }
+
+                return redirect()
+                    ->route('routers.vouchers.show', [$router, $voucher])
+                    ->with('success', $message);
+            } else {
+                return back()
+                    ->withInput()
+                    ->with('error', $result['message']);
+            }
+
+        } catch (Exception $e) {
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to generate users: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Retry syncing failed users to router
+     */
+    public function retrySync(Router $router, Voucher $voucher)
+    {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
+        try {
+            $result = $this->hotspotUserService->retrySyncFailedUsers($voucher);
+
+            return back()->with('success', $result['message']);
+
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to retry sync: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Activate voucher (change status)
+     */
+    public function activate(Router $router, Voucher $voucher)
+    {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
+        try {
+            $voucher->markAsActive();
+
+            return back()->with('success', 'Voucher activated successfully.');
+
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to activate voucher: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Disable voucher
+     */
+    public function disable(Router $router, Voucher $voucher)
+    {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
+        try {
+            $voucher->markAsInactive();
+
+            return back()->with('success', 'Voucher disabled successfully.');
+
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to disable voucher: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Enable voucher
+     */
+    public function enable(Router $router, Voucher $voucher)
+    {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
+        try {
+            $voucher->markAsActive();
+
+            return back()->with('success', 'Voucher enabled successfully.');
+
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to enable voucher: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Print voucher users (for distribution)
+     */
+    public function print(Router $router, Voucher $voucher)
+    {
+        // Ensure voucher belongs to router
+        if ($voucher->router_id !== $router->id) {
+            abort(404);
+        }
+
+        $voucher->load(['bandwidthPlan', 'hotspotUsers' => function ($query) {
+            $query->orderBy('created_at', 'desc');
+        }]);
+
+        return view('vouchers.print', compact('router', 'voucher'));
     }
 }

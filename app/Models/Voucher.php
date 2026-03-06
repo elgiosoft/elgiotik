@@ -17,18 +17,21 @@ class Voucher extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'code',
         'bandwidth_plan_id',
+        'mikrotik_profile_id',
         'router_id',
         'customer_id',
         'status',
         'price',
+        'user_capacity',
+        'users_generated',
         'activated_at',
         'expires_at',
         'sold_by',
         'sold_at',
         'mac_address',
         'notes',
+        'voucher_hash',
     ];
 
     /**
@@ -38,10 +41,26 @@ class Voucher extends Model
      */
     protected $casts = [
         'price' => 'decimal:2',
+        'user_capacity' => 'integer',
+        'users_generated' => 'integer',
         'activated_at' => 'datetime',
         'expires_at' => 'datetime',
         'sold_at' => 'datetime',
     ];
+
+    /**
+     * Boot method to generate voucher hash
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($voucher) {
+            if (!$voucher->voucher_hash) {
+                $voucher->voucher_hash = \Illuminate\Support\Str::random(32);
+            }
+        });
+    }
 
     /**
      * Relationships
@@ -81,19 +100,14 @@ class Voucher extends Model
         return $query->where('status', 'active');
     }
 
-    public function scopeUsed($query)
+    public function scopeInactive($query)
     {
-        return $query->where('status', 'used');
+        return $query->where('status', 'inactive');
     }
 
     public function scopeExpired($query)
     {
         return $query->where('status', 'expired');
-    }
-
-    public function scopeDisabled($query)
-    {
-        return $query->where('status', 'disabled');
     }
 
     public function scopeSold($query)
@@ -131,6 +145,16 @@ class Voucher extends Model
         return $query->where('bandwidth_plan_id', $planId);
     }
 
+    public function scopeHasCapacity($query)
+    {
+        return $query->whereRaw('users_generated < user_capacity');
+    }
+
+    public function scopeUsed($query)
+    {
+        return $query->where('users_generated', '>', 0);
+    }
+
     /**
      * Helper Methods
      */
@@ -140,9 +164,9 @@ class Voucher extends Model
         return $this->status === 'active';
     }
 
-    public function isUsed(): bool
+    public function isInactive(): bool
     {
-        return $this->status === 'used';
+        return $this->status === 'inactive';
     }
 
     public function isExpired(): bool
@@ -150,9 +174,14 @@ class Voucher extends Model
         return $this->status === 'expired';
     }
 
-    public function isDisabled(): bool
+    public function hasCapacity(): bool
     {
-        return $this->status === 'disabled';
+        return $this->users_generated < $this->user_capacity;
+    }
+
+    public function getRemainingCapacity(): int
+    {
+        return max(0, $this->user_capacity - $this->users_generated);
     }
 
     public function isSold(): bool
@@ -165,76 +194,18 @@ class Voucher extends Model
         return !is_null($this->activated_at);
     }
 
-    public function activate(): void
+    public function incrementUsersGenerated(): void
     {
-        $this->update([
-            'status' => 'used',
-            'activated_at' => now(),
-            'expires_at' => $this->calculateExpirationDate(),
-        ]);
+        $this->increment('users_generated');
     }
 
-    public function markAsSold(int $userId, ?int $customerId = null): void
+    public function markAsInactive(): void
     {
-        $this->update([
-            'sold_by' => $userId,
-            'sold_at' => now(),
-            'customer_id' => $customerId,
-        ]);
+        $this->update(['status' => 'inactive']);
     }
 
-    public function disable(): void
+    public function markAsActive(): void
     {
-        $this->update(['status' => 'disabled']);
-    }
-
-    public function enable(): void
-    {
-        if ($this->isExpired()) {
-            return;
-        }
-
-        $status = $this->isActivated() ? 'used' : 'active';
-        $this->update(['status' => $status]);
-    }
-
-    public function checkAndUpdateExpiration(): void
-    {
-        if ($this->expires_at && $this->expires_at->isPast() && !$this->isExpired()) {
-            $this->update(['status' => 'expired']);
-        }
-    }
-
-    private function calculateExpirationDate(): ?\DateTime
-    {
-        if (!$this->bandwidthPlan) {
-            return null;
-        }
-
-        $duration = $this->bandwidthPlan->getValidityDuration();
-
-        if (!$duration) {
-            return null;
-        }
-
-        return now()->addSeconds($duration);
-    }
-
-    public function getDaysUntilExpiration(): ?int
-    {
-        if (!$this->expires_at) {
-            return null;
-        }
-
-        return now()->diffInDays($this->expires_at, false);
-    }
-
-    public function getHoursUntilExpiration(): ?int
-    {
-        if (!$this->expires_at) {
-            return null;
-        }
-
-        return now()->diffInHours($this->expires_at, false);
+        $this->update(['status' => 'active']);
     }
 }

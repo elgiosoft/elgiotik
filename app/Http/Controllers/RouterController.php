@@ -8,6 +8,8 @@ use App\Services\MikroTikService;
 use App\Services\WireGuardService;
 use App\Services\OpenVPNService;
 use App\Services\VPNFactory;
+use ElgioPay\SDK\ElgioPayClient;
+use ElgioPay\SDK\ElgioPayException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
@@ -565,5 +567,81 @@ class RouterController extends Controller
         return response($router->vpn_config_script)
             ->header('Content-Type', 'text/plain')
             ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    /**
+     * Withdraw router wallet balance using ElgioPay payout
+     */
+    public function withdraw(Router $router)
+    {
+        try {
+            $balance = $router->wallet_balance;
+
+            if ($balance <= 0) {
+                return back()->with('error', 'No balance available to withdraw.');
+            }
+
+            // TODO: Add phone number field to router or use admin phone
+            $phoneNumber = '237XXXXXXXXX'; // This should come from router/user settings
+
+            // Initialize ElgioPay client
+            $elgioPay = new ElgioPayClient();
+
+            // Create payout request
+            $payoutData = [
+                'amount' => $balance * 10, // Convert to minimum currency unit
+                'phone_number' => $phoneNumber,
+                'payment_method' => 'mtn_mobile_money',
+                'currency' => 'XAF',
+                'reference' => 'WD-' . $router->id . '-' . time(),
+                'description' => 'Router wallet withdrawal - ' . $router->name,
+            ];
+
+            $payoutResponse = $elgioPay->createPayout($payoutData);
+
+            // Debit the wallet
+            $router->debitWallet(
+                $balance,
+                $payoutResponse['payout_id'] ?? $payoutData['reference'],
+                'Withdrawal via ElgioPay',
+                ['payout_response' => $payoutResponse]
+            );
+
+            Log::info("Wallet withdrawal processed for router {$router->name}", [
+                'router_id' => $router->id,
+                'amount' => $balance,
+                'reference' => $payoutData['reference'],
+            ]);
+
+            return back()->with('success', 'Withdrawal request submitted successfully. Amount: ' . number_format($balance, 0) . ' XAF');
+
+        } catch (ElgioPayException $e) {
+            Log::error('ElgioPay withdrawal error: ' . $e->getMessage());
+            return back()->with('error', 'Withdrawal failed: ' . $e->getMessage());
+
+        } catch (Exception $e) {
+            Log::error('Withdrawal error: ' . $e->getMessage());
+            return back()->with('error', 'Withdrawal failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download guest portal HTML file
+     */
+    public function downloadPortal(Router $router)
+    {
+        try {
+            // Render the portal view as HTML
+            $html = view('guest.portal', compact('router'))->render();
+
+            $filename = 'hotspot-portal-' . str_replace(' ', '-', strtolower($router->name)) . '.html';
+
+            return response($html)
+                ->header('Content-Type', 'text/html')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+
+        } catch (Exception $e) {
+            return back()->with('error', 'Failed to generate portal file: ' . $e->getMessage());
+        }
     }
 }
