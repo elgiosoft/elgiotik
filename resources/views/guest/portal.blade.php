@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="pragma" content="no-cache" />
+    <meta http-equiv="expires" content="-1" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>WiFi Hotspot Portal - {{ $router->name }}</title>
@@ -359,14 +361,38 @@
         <div class="content">
             <!-- Login Tab -->
             <div id="login-tab" class="tab-content active">
-                <form class="login-form" id="loginForm" method="post" action="$(if chap-id)http://$(hostname)/login?username=$(username)&password=$(password)$(else)http://$(hostname)/login?username=$(username)&password=$(password)$(endif)" name="sendin">
+                $(if chap-id)
+                <form name="sendin" action="$(link-login-only)" method="post" style="display:none">
+                    <input type="hidden" name="username" />
+                    <input type="hidden" name="password" />
+                    <input type="hidden" name="dst" value="$(link-orig)" />
+                    <input type="hidden" name="popup" value="true" />
+                </form>
+                $(endif)
+
+                <form class="login-form" id="loginForm" name="login" action="$(link-login-only)" method="post" $(if chap-id) onSubmit="return doLogin()" $(endif)>
+                    <input type="hidden" name="dst" value="$(link-orig)" />
+                    <input type="hidden" name="popup" value="true" />
+
+                    $(if error)
+                    <div class="alert alert-error">
+                        $(error)
+                    </div>
+                    $(endif)
+
+                    $(if trial == 'yes')
+                    <div class="alert alert-info">
+                        Free trial available, <a href="$(link-login-only)?dst=$(link-orig-esc)&username=T-$(mac-esc)" style="color: #1e40af; font-weight: 600;">click here</a> to try.
+                    </div>
+                    $(endif)
+
                     <div class="form-group">
                         <label for="username">Username</label>
-                        <input type="text" id="username" name="username" required placeholder="Enter your username">
+                        <input type="text" id="username" name="username" value="$(username)" required placeholder="Enter your username">
                     </div>
                     <div class="form-group">
                         <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required placeholder="Enter your password">
+                        <input type="password" id="password" name="password" placeholder="Enter your password">
                     </div>
                     <button type="submit" class="btn btn-primary">Connect</button>
                 </form>
@@ -419,7 +445,18 @@
         </div>
     </div>
 
+    <script src="/md5.js"></script>
     <script>
+        // MikroTik CHAP Authentication
+        $(if chap-id)
+        function doLogin() {
+            document.sendin.username.value = document.login.username.value;
+            document.sendin.password.value = hexMD5('$(chap-id)' + document.login.password.value + '$(chap-challenge)');
+            document.sendin.submit();
+            return false;
+        }
+        $(endif)
+
         const ROUTER_HASH = '{{ $router->router_hash }}';
         const BASE_URL = '{{ url('/') }}';
         let selectedPlan = null;
