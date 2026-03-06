@@ -775,4 +775,38 @@ class RouterController extends Controller
             return back()->with('error', 'Failed to upload portal to router: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Generate router hash if missing
+     */
+    public function generateHash(Router $router)
+    {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
+        try {
+            // Check if router already has a hash
+            if ($router->router_hash) {
+                return back()->with('info', 'Router already has a hash generated.');
+            }
+
+            // Generate new hash
+            $router->update([
+                'router_hash' => \Illuminate\Support\Str::random(32),
+            ]);
+
+            Log::info("Router hash generated for {$router->name}", [
+                'router_id' => $router->id,
+                'router_hash' => $router->router_hash,
+            ]);
+
+            return back()->with('success', 'Router hash generated successfully! You can now use the guest portal.');
+
+        } catch (Exception $e) {
+            Log::error('Hash generation error: ' . $e->getMessage());
+            return back()->with('error', 'Failed to generate router hash: ' . $e->getMessage());
+        }
+    }
 }

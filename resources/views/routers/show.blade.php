@@ -475,10 +475,10 @@
 
                                     <div x-show="showCommands" x-collapse>
                                         <div class="mt-3 bg-gray-900 rounded-lg p-4 relative">
-                                            <button onclick="copyCommands()" class="absolute top-2 right-2 px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition">
+                                            <button onclick="copyCommands()" class="absolute top-2 right-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition">
                                                 Copy All
                                             </button>
-                                            <pre id="vpn-commands" class="text-xs text-gray-100 overflow-x-auto font-mono whitespace-pre-wrap break-all pr-20">{{ $router->vpn_config_script }}</pre>
+                                            <pre id="vpn-commands" class="text-sm text-cyan-400 overflow-x-auto font-mono whitespace-pre pr-20">{{ $router->vpn_config_script }}</pre>
                                         </div>
                                         <p class="mt-2 text-xs text-gray-500">
                                             <strong>Alternative Setup:</strong> Copy these commands and paste them directly into your MikroTik terminal instead of uploading a file.
@@ -822,6 +822,35 @@
 
             <!-- Portal Tab -->
             <div x-show="activeTab === 'portal'" x-cloak class="px-6 py-5">
+                @if(!$router->router_hash)
+                <!-- Missing Hash Warning -->
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <h3 class="text-sm font-medium text-yellow-800">Router Hash Missing</h3>
+                            <p class="mt-2 text-sm text-yellow-700">
+                                This router does not have a hash generated yet. A unique hash is required to create the guest portal URL. Click the button below to generate one.
+                            </p>
+                            <div class="mt-4">
+                                <form action="{{ route('routers.generateHash', $router) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition">
+                                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                        </svg>
+                                        Generate Router Hash
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @else
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
                     <h3 class="text-lg font-medium text-blue-900 mb-2">Guest Portal</h3>
                     <p class="text-sm text-blue-700 mb-4">This is your customized hotspot portal page where guests can login or purchase internet plans.</p>
@@ -953,6 +982,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </div>
@@ -977,12 +1007,12 @@ function copyCommands() {
         const originalText = button.textContent;
         button.textContent = 'Copied!';
         button.classList.add('bg-green-600');
-        button.classList.remove('bg-gray-700');
+        button.classList.remove('bg-blue-600');
 
         setTimeout(function() {
             button.textContent = originalText;
             button.classList.remove('bg-green-600');
-            button.classList.add('bg-gray-700');
+            button.classList.add('bg-blue-600');
         }, 2000);
     }, function(err) {
         alert('Failed to copy commands');

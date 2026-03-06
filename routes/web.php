@@ -95,6 +95,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{router}/withdraw', [RouterController::class, 'withdraw'])->name('withdraw');
         Route::get('/{router}/download-portal', [RouterController::class, 'downloadPortal'])->name('downloadPortal');
         Route::post('/{router}/upload-portal', [RouterController::class, 'uploadPortalToRouter'])->name('uploadPortal');
+        Route::post('/{router}/generate-hash', [RouterController::class, 'generateHash'])->name('generateHash');
 
         // Voucher Management (under router)
         Route::prefix('/{router}/vouchers')->name('vouchers.')->group(function () {
