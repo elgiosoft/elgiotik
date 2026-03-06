@@ -19,7 +19,7 @@ class MikroTikService
     public function __construct(?Router $router = null)
     {
         // Load connection settings from config
-        $this->connectionTimeout = config('mikrotik.connection_timeout', 5);
+        $this->connectionTimeout = (int) config('mikrotik.connection_timeout', 5);
         $this->attempts = config('mikrotik.attempts', 3);
         $this->delay = config('mikrotik.delay', 1);
 
