@@ -732,4 +732,47 @@ class RouterController extends Controller
             return back()->with('error', 'Failed to generate portal file: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Upload portal HTML file directly to MikroTik router
+     */
+    public function uploadPortalToRouter(Router $router)
+    {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
+        try {
+            // Check router status
+            if ($router->status === 'offline') {
+                return back()->with('error', 'Router is offline. Please test connection first.');
+            }
+
+            // Render the portal view as HTML
+            $html = view('guest.portal', compact('router'))->render();
+            $filename = 'login.html';
+
+            // Connect to MikroTik
+            $mikrotik = new MikroTikService($router);
+
+            // Upload file to router
+            $result = $mikrotik->uploadFile($filename, $html, 'hotspot');
+
+            if ($result) {
+                Log::info("Portal HTML uploaded to router {$router->name}", [
+                    'router_id' => $router->id,
+                    'filename' => $filename,
+                ]);
+
+                return back()->with('success', 'Portal HTML file uploaded successfully to router at hotspot/login.html');
+            } else {
+                return back()->with('error', 'Failed to upload portal file to router.');
+            }
+
+        } catch (Exception $e) {
+            Log::error('Portal upload error: ' . $e->getMessage());
+            return back()->with('error', 'Failed to upload portal to router: ' . $e->getMessage());
+        }
+    }
 }

@@ -46,8 +46,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/success', [PortalController::class, 'success'])->name('success');
 });
 
-// Redirect root to portal
-Route::redirect('/', '/portal');
+// Landing Page
+Route::get('/', function () {
+    return view('welcome');
+});
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
@@ -92,6 +94,7 @@ Route::middleware('auth')->group(function () {
         // Wallet & Portal
         Route::post('/{router}/withdraw', [RouterController::class, 'withdraw'])->name('withdraw');
         Route::get('/{router}/download-portal', [RouterController::class, 'downloadPortal'])->name('downloadPortal');
+        Route::post('/{router}/upload-portal', [RouterController::class, 'uploadPortalToRouter'])->name('uploadPortal');
 
         // Voucher Management (under router)
         Route::prefix('/{router}/vouchers')->name('vouchers.')->group(function () {

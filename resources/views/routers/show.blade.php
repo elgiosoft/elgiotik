@@ -847,6 +847,15 @@
                             </svg>
                             Download HTML
                         </a>
+                        <form action="{{ route('routers.uploadPortal', $router) }}" method="POST" class="inline" onsubmit="return confirm('This will upload the portal HTML file to the router at hotspot/login.html. Continue?');">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                                <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                Upload to Router
+                            </button>
+                        </form>
                     </div>
                 </div>
 
@@ -859,6 +868,90 @@
                         <li>Your guests will now see this custom portal when connecting to the hotspot</li>
                         <li>They can login with credentials or purchase new plans directly from the portal</li>
                     </ol>
+
+                    <!-- Hotspot Configuration Commands -->
+                    <div class="mt-6" x-data="{ showHotspotSetup: false }">
+                        <button @click="showHotspotSetup = !showHotspotSetup" class="flex items-center justify-between w-full px-4 py-3 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition text-left">
+                            <span class="text-sm font-medium text-gray-900">Need to Setup Hotspot? Click Here</span>
+                            <svg class="w-5 h-5 text-gray-500 transition-transform" :class="{'rotate-180': showHotspotSetup}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <div x-show="showHotspotSetup" x-collapse>
+                            <div class="mt-4 space-y-4">
+                                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <h5 class="text-sm font-semibold text-yellow-900 mb-2">Basic Hotspot Setup Commands</h5>
+                                    <p class="text-xs text-yellow-800 mb-3">Run these commands in the MikroTik Terminal to setup a basic hotspot. Replace values as needed for your network.</p>
+
+                                    <div class="bg-gray-900 rounded-lg p-4 relative">
+                                        <button onclick="copyHotspotCommands()" class="absolute top-2 right-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition">
+                                            Copy All
+                                        </button>
+                                        <pre id="hotspot-commands" class="text-sm text-green-400 overflow-x-auto font-mono whitespace-pre pr-20"># Step 1: Create IP Pool for hotspot users
+/ip pool add name=hotspot-pool ranges=10.5.50.2-10.5.50.254
+
+# Step 2: Setup hotspot interface (replace 'ether2' with your LAN interface)
+/interface bridge add name=bridge-hotspot
+/interface bridge port add bridge=bridge-hotspot interface=ether2
+
+# Step 3: Add IP address to hotspot interface
+/ip address add address=10.5.50.1/24 interface=bridge-hotspot
+
+# Step 4: Configure hotspot server
+/ip hotspot profile add name=hsprof1 login-by=http-chap,http-pap
+
+# Step 5: Setup hotspot on the interface
+/ip hotspot add name=hotspot1 interface=bridge-hotspot address-pool=hotspot-pool profile=hsprof1
+
+# Step 6: Enable DNS for hotspot
+/ip dns set allow-remote-requests=yes servers=8.8.8.8,8.8.4.4
+
+# Step 7: Create NAT rule for internet access
+/ip firewall nat add chain=srcnat action=masquerade out-interface=ether1
+
+# Step 8: Enable FTP service (required for portal upload)
+/ip service enable ftp
+
+# Step 9: Create user profile with bandwidth limits (example: 5M/5M)
+/ip hotspot user profile add name=5Mbps rate-limit=5M/5M
+
+# Step 10: Test by creating a test user
+/ip hotspot user add name=test password=test123 profile=5Mbps
+
+# Additional: View hotspot status
+/ip hotspot print
+/ip hotspot active print
+
+# Additional: View hotspot users
+/ip hotspot user print</pre>
+                                    </div>
+                                </div>
+
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <h5 class="text-sm font-semibold text-blue-900 mb-2">Important Notes:</h5>
+                                    <ul class="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                                        <li><strong>ether1:</strong> Usually your WAN/Internet interface</li>
+                                        <li><strong>ether2:</strong> Replace with your actual LAN interface name</li>
+                                        <li><strong>10.5.50.1/24:</strong> This is the hotspot network. You can change it to your preferred subnet</li>
+                                        <li><strong>Enable FTP:</strong> Required if you want to use the "Upload to Router" button above</li>
+                                        <li><strong>DNS Servers:</strong> Using Google DNS (8.8.8.8), you can change to your preferred DNS</li>
+                                        <li>After setup, upload your custom portal HTML file to <code class="px-1 py-0.5 bg-blue-100 rounded font-mono">hotspot/login.html</code></li>
+                                    </ul>
+                                </div>
+
+                                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    <h5 class="text-sm font-semibold text-green-900 mb-2">Verify Setup:</h5>
+                                    <p class="text-xs text-green-800 mb-2">Run these commands to verify your hotspot is working:</p>
+                                    <div class="bg-gray-900 rounded-lg p-3">
+                                        <pre class="text-sm text-green-400 font-mono">/ip hotspot print
+/ip hotspot user print
+/ip hotspot active print</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -890,6 +983,28 @@ function copyCommands() {
             button.textContent = originalText;
             button.classList.remove('bg-green-600');
             button.classList.add('bg-gray-700');
+        }, 2000);
+    }, function(err) {
+        alert('Failed to copy commands');
+    });
+}
+
+function copyHotspotCommands() {
+    const commandsElement = document.getElementById('hotspot-commands');
+    const text = commandsElement.textContent;
+
+    navigator.clipboard.writeText(text).then(function() {
+        // Change button text temporarily
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.classList.add('bg-green-600');
+        button.classList.remove('bg-blue-600');
+
+        setTimeout(function() {
+            button.textContent = originalText;
+            button.classList.remove('bg-green-600');
+            button.classList.add('bg-blue-600');
         }, 2000);
     }, function(err) {
         alert('Failed to copy commands');

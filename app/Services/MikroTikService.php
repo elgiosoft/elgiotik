@@ -427,4 +427,100 @@ class MikroTikService
             'total' => count($routerUsers),
         ];
     }
+
+    /**
+     * Upload file to MikroTik router via FTP
+     *
+     * @param string $filename The name of the file on the router
+     * @param string $content The file content
+     * @param string $path Optional subdirectory path (e.g., 'hotspot')
+     * @return bool Success status
+     */
+    public function uploadFile(string $filename, string $content, string $path = ''): bool
+    {
+        try {
+            // Use VPN IP if enabled, otherwise use direct IP
+            $connectIp = $this->router->getConnectionIp();
+            $ftpPort = 21; // Default FTP port
+
+            Log::info("Attempting FTP upload to {$this->router->name}", [
+                'ip' => $connectIp,
+                'port' => $ftpPort,
+                'filename' => $filename,
+                'path' => $path,
+            ]);
+
+            // Create temporary file with content
+            $tempFile = tempnam(sys_get_temp_dir(), 'mikrotik_');
+            file_put_contents($tempFile, $content);
+
+            try {
+                // Connect to FTP server
+                $ftpConnection = ftp_connect($connectIp, $ftpPort, 10);
+
+                if (!$ftpConnection) {
+                    throw new Exception("Could not connect to FTP server at {$connectIp}:{$ftpPort}. Please ensure FTP service is enabled on the router (IP → Services → FTP).");
+                }
+
+                // Login to FTP
+                $login = ftp_login($ftpConnection, $this->router->username, $this->router->decryptedPassword());
+
+                if (!$login) {
+                    ftp_close($ftpConnection);
+                    throw new Exception("FTP authentication failed. Please check router credentials.");
+                }
+
+                // Enable passive mode
+                ftp_pasv($ftpConnection, true);
+
+                // Change to target directory if specified
+                if ($path) {
+                    // Try to change to directory, create it if it doesn't exist
+                    if (!@ftp_chdir($ftpConnection, $path)) {
+                        // Try to create the directory
+                        if (!@ftp_mkdir($ftpConnection, $path)) {
+                            Log::warning("Could not create or access directory: {$path}");
+                        } else {
+                            ftp_chdir($ftpConnection, $path);
+                        }
+                    }
+                }
+
+                // Upload file
+                $upload = ftp_put($ftpConnection, $filename, $tempFile, FTP_BINARY);
+
+                if (!$upload) {
+                    ftp_close($ftpConnection);
+                    throw new Exception("Failed to upload file via FTP.");
+                }
+
+                // Close connection
+                ftp_close($ftpConnection);
+
+                // Clean up temp file
+                unlink($tempFile);
+
+                Log::info("File uploaded successfully via FTP", [
+                    'router' => $this->router->name,
+                    'filename' => $path ? "{$path}/{$filename}" : $filename,
+                ]);
+
+                return true;
+
+            } catch (Exception $e) {
+                // Clean up temp file
+                if (file_exists($tempFile)) {
+                    unlink($tempFile);
+                }
+                throw $e;
+            }
+
+        } catch (Exception $e) {
+            Log::error('Failed to upload file via FTP: ' . $e->getMessage(), [
+                'router' => $this->router->name ?? 'unknown',
+                'filename' => $filename,
+            ]);
+            throw $e;
+        }
+    }
 }
