@@ -809,4 +809,200 @@ class RouterController extends Controller
             return back()->with('error', 'Failed to generate router hash: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Load vouchers from router by importing hotspot user profiles
+     */
+    public function loadVouchers(Router $router)
+    {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
+        try {
+            // Check if router is online
+            if ($router->status === 'offline') {
+                return back()->with('error', 'Router is offline. Please test connection first.');
+            }
+
+            // Connect to MikroTik
+            $mikrotik = new MikroTikService($router);
+
+            // Get all hotspot user profiles from router
+            $profiles = $mikrotik->getProfiles();
+
+            if (empty($profiles)) {
+                return back()->with('info', 'No user profiles found on the router.');
+            }
+
+            // Get all bandwidth plans for this user
+            $bandwidthPlans = auth()->user()->bandwidthPlans;
+
+            $created = 0;
+            $skipped = 0;
+            $errors = [];
+
+            foreach ($profiles as $profile) {
+                try {
+                    $profileName = $profile['name'] ?? null;
+
+                    if (!$profileName) {
+                        continue;
+                    }
+
+                    // Skip default profiles
+                    if (in_array($profileName, ['default', 'default-encryption'])) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Check if voucher already exists for this profile
+                    $existingVoucher = $router->vouchers()
+                        ->where('mikrotik_profile_id', $profileName)
+                        ->first();
+
+                    if ($existingVoucher) {
+                        $skipped++;
+                        continue;
+                    }
+
+                    // Try to match bandwidth plan by rate limit
+                    $rateLimit = $profile['rate-limit'] ?? null;
+                    $bandwidthPlanId = 0; // Default to 0 if no match
+
+                    if ($rateLimit && !empty($bandwidthPlans)) {
+                        $bandwidthPlanId = $this->matchBandwidthPlan($rateLimit, $bandwidthPlans);
+                    }
+
+                    // Create voucher from profile
+                    $router->vouchers()->create([
+                        'bandwidth_plan_id' => $bandwidthPlanId,
+                        'mikrotik_profile_id' => $profileName,
+                        'status' => 'active',
+                        'price' => 0, // Default price, can be updated later
+                        'user_capacity' => 1, // Default capacity
+                        'users_generated' => 0,
+                    ]);
+
+                    $created++;
+
+                } catch (Exception $e) {
+                    $errors[] = [
+                        'profile' => $profileName ?? 'unknown',
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            }
+
+            $message = "Load completed: {$created} voucher(s) created, {$skipped} skipped";
+
+            if (count($errors) > 0) {
+                $message .= ". " . count($errors) . " error(s) occurred.";
+            }
+
+            Log::info("Vouchers loaded from router {$router->name}", [
+                'router_id' => $router->id,
+                'created' => $created,
+                'skipped' => $skipped,
+                'errors' => count($errors),
+            ]);
+
+            return back()->with('success', $message);
+
+        } catch (Exception $e) {
+            Log::error('Load vouchers error: ' . $e->getMessage());
+            return back()->with('error', 'Failed to load vouchers from router: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Try to match a MikroTik rate limit to a bandwidth plan
+     *
+     * @param string $rateLimit MikroTik rate limit format (e.g., "5M/5M", "10M/10M")
+     * @param \Illuminate\Support\Collection $bandwidthPlans Available bandwidth plans
+     * @return int Bandwidth plan ID or 0 if no match
+     */
+    protected function matchBandwidthPlan(string $rateLimit, $bandwidthPlans): int
+    {
+        // Parse rate limit (format: "upload/download" e.g., "5M/5M")
+        $parts = explode('/', $rateLimit);
+
+        if (count($parts) !== 2) {
+            return 0;
+        }
+
+        $uploadLimit = $this->parseSpeed($parts[0]);
+        $downloadLimit = $this->parseSpeed($parts[1]);
+
+        // Try to find matching bandwidth plan
+        foreach ($bandwidthPlans as $plan) {
+            $planUpload = $this->parseSpeed($plan->upload_speed ?? '');
+            $planDownload = $this->parseSpeed($plan->download_speed ?? '');
+
+            // Match if speeds are equal (or within 10% tolerance)
+            if ($this->speedsMatch($uploadLimit, $planUpload) &&
+                $this->speedsMatch($downloadLimit, $planDownload)) {
+                return $plan->id;
+            }
+        }
+
+        return 0; // No match found
+    }
+
+    /**
+     * Parse speed string to bytes per second
+     *
+     * @param string $speed Speed string (e.g., "5M", "1G", "512k")
+     * @return int Speed in bytes per second
+     */
+    protected function parseSpeed(string $speed): int
+    {
+        $speed = trim(strtoupper($speed));
+
+        if (empty($speed)) {
+            return 0;
+        }
+
+        // Extract number and unit
+        preg_match('/^(\d+(?:\.\d+)?)\s*([KMGT])?/', $speed, $matches);
+
+        if (empty($matches)) {
+            return 0;
+        }
+
+        $number = (float) $matches[1];
+        $unit = $matches[2] ?? '';
+
+        // Convert to bytes per second
+        $multipliers = [
+            'K' => 1024,
+            'M' => 1024 * 1024,
+            'G' => 1024 * 1024 * 1024,
+            'T' => 1024 * 1024 * 1024 * 1024,
+        ];
+
+        $multiplier = $multipliers[$unit] ?? 1;
+
+        return (int) ($number * $multiplier);
+    }
+
+    /**
+     * Check if two speeds match (within 10% tolerance)
+     *
+     * @param int $speed1 First speed in bytes per second
+     * @param int $speed2 Second speed in bytes per second
+     * @return bool True if speeds match
+     */
+    protected function speedsMatch(int $speed1, int $speed2): bool
+    {
+        if ($speed1 == 0 || $speed2 == 0) {
+            return false;
+        }
+
+        $tolerance = 0.1; // 10% tolerance
+        $ratio = $speed1 / $speed2;
+
+        return $ratio >= (1 - $tolerance) && $ratio <= (1 + $tolerance);
+    }
 }
