@@ -78,7 +78,7 @@ cat > /etc/openvpn/server.conf <<EOF
 # ElgioTik OpenVPN Server Configuration
 # Port and protocol
 port $VPN_PORT
-proto udp
+proto tcp-server
 dev tun
 
 # SSL/TLS configuration
@@ -102,8 +102,11 @@ push "dhcp-option DNS 8.8.4.4"
 keepalive 10 120
 cipher AES-256-CBC
 auth SHA256
-compress lz4-v2
-push "compress lz4-v2"
+ncp-disable
+
+# No compression (MikroTik compatibility)
+# compress lz4-v2
+# push "compress lz4-v2"
 
 # Permissions
 user nobody
@@ -119,10 +122,26 @@ verb 3
 # Client compatibility (for MikroTik)
 client-to-client
 duplicate-cn
+verify-client-cert none
+username-as-common-name
+
+# Authentication
+script-security 2
+auth-user-pass-verify /etc/openvpn/auth.sh via-env
 
 # Security
 max-clients 100
 EOF
+
+# Create simple authentication script
+cat > /etc/openvpn/auth.sh <<'AUTHEOF'
+#!/bin/bash
+# Simple pass-through authentication for MikroTik compatibility
+# All authenticated clients are allowed
+exit 0
+AUTHEOF
+
+chmod +x /etc/openvpn/auth.sh
 
 # Create log directory
 mkdir -p /var/log/openvpn

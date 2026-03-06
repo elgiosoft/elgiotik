@@ -92,10 +92,12 @@ class WireGuardService
         // Get server public key
         $serverPublicKey = $this->getServerPublicKey();
 
+        $timestamp = now()->toDateTimeString();
+
         $config = <<<RSC
 # MikroTik WireGuard VPN Configuration for {$router->name}
 # Generated automatically by ElgioTik
-# Generated on: {now()->toDateTimeString()}
+# Generated on: {$timestamp}
 #
 # INSTRUCTIONS:
 # 1. Copy this entire script

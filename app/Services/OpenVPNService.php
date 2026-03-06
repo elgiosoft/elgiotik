@@ -147,10 +147,11 @@ class OpenVPNService
     connect-to=\$serverAddress \\
     port=\$serverPort \\
     mode=ip \\
+    protocol=tcp \\
     user="{$router->name}" \\
     password="" \\
-    auth=sha1 \\
-    cipher=aes256 \\
+    auth=sha256 \\
+    cipher=aes256-cbc \\
     add-default-route=no \\
     use-peer-dns=no \\
     comment="ElgioTik VPN Tunnel"
