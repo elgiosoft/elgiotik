@@ -25,6 +25,11 @@ class VoucherController extends Controller
      */
     public function index(Request $request, Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         $query = $router->vouchers()->with(['bandwidthPlan', 'customer', 'hotspotUsers']);
 
         // Search by notes or ID
@@ -66,7 +71,17 @@ class VoucherController extends Controller
      */
     public function create(Router $router)
     {
-        $bandwidthPlans = BandwidthPlan::active()->orderBy('name')->get();
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
+        $user = auth()->user();
+
+        // Scope bandwidth plans to user's plans
+        $bandwidthPlans = $user->isAdmin()
+            ? BandwidthPlan::active()->orderBy('name')->get()
+            : BandwidthPlan::where('user_id', $user->id)->active()->orderBy('name')->get();
 
         return view('vouchers.create', compact('router', 'bandwidthPlans'));
     }
@@ -76,6 +91,11 @@ class VoucherController extends Controller
      */
     public function store(Request $request, Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         $validated = $request->validate([
             'bandwidth_plan_id' => 'required|exists:bandwidth_plans,id',
             'user_capacity' => 'required|integer|min:1|max:1000',
@@ -87,6 +107,12 @@ class VoucherController extends Controller
         try {
             // Get bandwidth plan to set price if not provided
             $bandwidthPlan = BandwidthPlan::findOrFail($validated['bandwidth_plan_id']);
+
+            // Authorization check for bandwidth plan
+            if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+                return back()->with('error', 'Unauthorized: You do not own the specified bandwidth plan.');
+            }
+
             $price = $validated['price'] ?? $bandwidthPlan->price;
 
             $voucher = Voucher::create([
@@ -131,6 +157,11 @@ class VoucherController extends Controller
             abort(404);
         }
 
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         $voucher->load([
             'bandwidthPlan',
             'customer',
@@ -162,7 +193,18 @@ class VoucherController extends Controller
             abort(404);
         }
 
-        $bandwidthPlans = BandwidthPlan::active()->orderBy('name')->get();
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
+        $user = auth()->user();
+
+        // Scope bandwidth plans to user's plans
+        $bandwidthPlans = $user->isAdmin()
+            ? BandwidthPlan::active()->orderBy('name')->get()
+            : BandwidthPlan::where('user_id', $user->id)->active()->orderBy('name')->get();
+
         $customers = Customer::active()->orderBy('name')->get();
 
         return view('vouchers.edit', compact('router', 'voucher', 'bandwidthPlans', 'customers'));
@@ -178,6 +220,11 @@ class VoucherController extends Controller
             abort(404);
         }
 
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         $validated = $request->validate([
             'bandwidth_plan_id' => 'required|exists:bandwidth_plans,id',
             'customer_id' => 'nullable|exists:customers,id',
@@ -187,6 +234,12 @@ class VoucherController extends Controller
         ]);
 
         try {
+            // Authorization check for bandwidth plan
+            $bandwidthPlan = BandwidthPlan::findOrFail($validated['bandwidth_plan_id']);
+            if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+                return back()->with('error', 'Unauthorized: You do not own the specified bandwidth plan.');
+            }
+
             $voucher->update($validated);
 
             return redirect()
@@ -208,6 +261,11 @@ class VoucherController extends Controller
         // Ensure voucher belongs to router
         if ($voucher->router_id !== $router->id) {
             abort(404);
+        }
+
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
         }
 
         // Check if voucher has generated users
@@ -239,6 +297,11 @@ class VoucherController extends Controller
             abort(404);
         }
 
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             $result = $this->hotspotUserService->syncProfileToRouter($voucher);
 
@@ -263,6 +326,11 @@ class VoucherController extends Controller
             abort(404);
         }
 
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         $remainingCapacity = $voucher->getRemainingCapacity();
 
         return view('vouchers.generate-users', compact('router', 'voucher', 'remainingCapacity'));
@@ -276,6 +344,11 @@ class VoucherController extends Controller
         // Ensure voucher belongs to router
         if ($voucher->router_id !== $router->id) {
             abort(404);
+        }
+
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
         }
 
         $validated = $request->validate([
@@ -324,6 +397,11 @@ class VoucherController extends Controller
             abort(404);
         }
 
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             $result = $this->hotspotUserService->retrySyncFailedUsers($voucher);
 
@@ -342,6 +420,11 @@ class VoucherController extends Controller
         // Ensure voucher belongs to router
         if ($voucher->router_id !== $router->id) {
             abort(404);
+        }
+
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
         }
 
         try {
@@ -364,6 +447,11 @@ class VoucherController extends Controller
             abort(404);
         }
 
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             $voucher->markAsInactive();
 
@@ -384,6 +472,11 @@ class VoucherController extends Controller
             abort(404);
         }
 
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             $voucher->markAsActive();
 
@@ -402,6 +495,11 @@ class VoucherController extends Controller
         // Ensure voucher belongs to router
         if ($voucher->router_id !== $router->id) {
             abort(404);
+        }
+
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
         }
 
         $voucher->load(['bandwidthPlan', 'hotspotUsers' => function ($query) {

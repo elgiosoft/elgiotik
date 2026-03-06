@@ -21,6 +21,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone_number',
         'password',
         'role',
         'is_active',
@@ -50,6 +51,16 @@ class User extends Authenticatable
     /**
      * Relationships
      */
+
+    public function routers(): HasMany
+    {
+        return $this->hasMany(Router::class);
+    }
+
+    public function bandwidthPlans(): HasMany
+    {
+        return $this->hasMany(BandwidthPlan::class);
+    }
 
     public function createdCustomers(): HasMany
     {
@@ -104,6 +115,11 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    public function isOwner(): bool
+    {
+        return $this->role === 'owner';
+    }
+
     public function isStaff(): bool
     {
         return $this->role === 'staff';
@@ -116,11 +132,42 @@ class User extends Authenticatable
 
     public function canManageRouters(): bool
     {
-        return in_array($this->role, ['admin', 'staff']);
+        return in_array($this->role, ['admin', 'owner', 'staff']);
     }
 
     public function canSellVouchers(): bool
     {
-        return in_array($this->role, ['admin', 'staff', 'cashier']);
+        return in_array($this->role, ['admin', 'owner', 'staff', 'cashier']);
+    }
+
+    public function ownsRouter(Router $router): bool
+    {
+        return $this->id === $router->user_id || $this->isAdmin();
+    }
+
+    public function ownsBandwidthPlan(BandwidthPlan $bandwidthPlan): bool
+    {
+        return $this->id === $bandwidthPlan->user_id || $this->isAdmin();
+    }
+
+    public function ownsCustomer(Customer $customer): bool
+    {
+        // Admins can access all customers
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        // Check if user created the customer
+        if ($customer->created_by === $this->id) {
+            return true;
+        }
+
+        // Check if customer has vouchers or hotspot users on user's routers
+        $routerIds = $this->routers()->pluck('id');
+
+        $hasVouchers = $customer->vouchers()->whereIn('router_id', $routerIds)->exists();
+        $hasHotspotUsers = $customer->hotspotUsers()->whereIn('router_id', $routerIds)->exists();
+
+        return $hasVouchers || $hasHotspotUsers;
     }
 }

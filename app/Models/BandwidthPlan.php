@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BandwidthPlan extends Model
@@ -16,6 +17,7 @@ class BandwidthPlan extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'user_id',
         'name',
         'rate_limit',
         'download_speed',
@@ -63,6 +65,11 @@ class BandwidthPlan extends Model
     /**
      * Relationships
      */
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function vouchers(): HasMany
     {

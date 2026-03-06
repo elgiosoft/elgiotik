@@ -19,7 +19,26 @@ class CustomerController extends Controller
      */
     public function index(Request $request)
     {
+        $user = auth()->user();
         $query = Customer::with('createdBy');
+
+        // Scope to user's customers (admins see all)
+        if (!$user->isAdmin()) {
+            // Get user's router IDs
+            $routerIds = $user->routers()->pluck('id');
+
+            // Scope customers to those who have vouchers or hotspot users on user's routers
+            // OR customers created by the user
+            $query->where(function ($q) use ($user, $routerIds) {
+                $q->where('created_by', $user->id)
+                  ->orWhereHas('vouchers', function ($voucherQuery) use ($routerIds) {
+                      $voucherQuery->whereIn('router_id', $routerIds);
+                  })
+                  ->orWhereHas('hotspotUsers', function ($hotspotQuery) use ($routerIds) {
+                      $hotspotQuery->whereIn('router_id', $routerIds);
+                  });
+            });
+        }
 
         // Search functionality
         if ($request->filled('search')) {
@@ -103,6 +122,11 @@ class CustomerController extends Controller
      */
     public function show(Customer $customer)
     {
+        // Authorization check
+        if (!auth()->user()->ownsCustomer($customer)) {
+            abort(403, 'Unauthorized access to this customer.');
+        }
+
         // Load relationships with pagination-ready queries
         $customer->load([
             'createdBy',
@@ -144,6 +168,11 @@ class CustomerController extends Controller
      */
     public function edit(Customer $customer)
     {
+        // Authorization check
+        if (!auth()->user()->ownsCustomer($customer)) {
+            abort(403, 'Unauthorized access to this customer.');
+        }
+
         return view('customers.edit', compact('customer'));
     }
 
@@ -161,6 +190,11 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
+        // Authorization check
+        if (!auth()->user()->ownsCustomer($customer)) {
+            abort(403, 'Unauthorized access to this customer.');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -192,6 +226,11 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
+        // Authorization check
+        if (!auth()->user()->ownsCustomer($customer)) {
+            abort(403, 'Unauthorized access to this customer.');
+        }
+
         // Check if customer has active vouchers
         $activeVouchersCount = $customer->vouchers()
             ->where('status', 'active')
@@ -230,6 +269,11 @@ class CustomerController extends Controller
      */
     public function purchaseHistory(Customer $customer)
     {
+        // Authorization check
+        if (!auth()->user()->ownsCustomer($customer)) {
+            abort(403, 'Unauthorized access to this customer.');
+        }
+
         $purchases = $customer->vouchers()
             ->with(['bandwidthPlan', 'router', 'soldBy'])
             ->whereNotNull('sold_at')
@@ -272,6 +316,11 @@ class CustomerController extends Controller
      */
     public function activeServices(Customer $customer)
     {
+        // Authorization check
+        if (!auth()->user()->ownsCustomer($customer)) {
+            abort(403, 'Unauthorized access to this customer.');
+        }
+
         // Get active vouchers with related data
         $activeVouchers = $customer->vouchers()
             ->with(['bandwidthPlan', 'router'])

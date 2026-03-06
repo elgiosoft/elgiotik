@@ -19,6 +19,11 @@ class BandwidthPlanController extends Controller
     {
         $query = BandwidthPlan::query();
 
+        // Scope to user's bandwidth plans (admins see all)
+        if (!auth()->user()->isAdmin()) {
+            $query->where('user_id', auth()->id());
+        }
+
         // Search functionality
         if ($request->filled('search')) {
             $search = $request->search;
@@ -75,6 +80,9 @@ class BandwidthPlanController extends Controller
             'is_active' => 'boolean',
         ]);
 
+        // Set user_id to authenticated user
+        $validated['user_id'] = auth()->id();
+
         // Format rate limits for MikroTik
         $validated['rate_limit'] = $this->formatRateLimit($validated['rate_limit']);
         $validated['download_speed'] = $this->formatRateLimit($validated['download_speed']);
@@ -99,6 +107,11 @@ class BandwidthPlanController extends Controller
      */
     public function show(BandwidthPlan $bandwidthPlan)
     {
+        // Authorization check
+        if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+            abort(403, 'Unauthorized access to this bandwidth plan.');
+        }
+
         // Load relationships with counts
         $bandwidthPlan->loadCount([
             'vouchers',
@@ -121,6 +134,11 @@ class BandwidthPlanController extends Controller
      */
     public function edit(BandwidthPlan $bandwidthPlan)
     {
+        // Authorization check
+        if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+            abort(403, 'Unauthorized access to this bandwidth plan.');
+        }
+
         return view('bandwidth-plans.edit', compact('bandwidthPlan'));
     }
 
@@ -129,6 +147,11 @@ class BandwidthPlanController extends Controller
      */
     public function update(Request $request, BandwidthPlan $bandwidthPlan)
     {
+        // Authorization check
+        if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+            abort(403, 'Unauthorized access to this bandwidth plan.');
+        }
+
         $validated = $request->validate([
             'name' => [
                 'required',
@@ -173,6 +196,11 @@ class BandwidthPlanController extends Controller
      */
     public function destroy(BandwidthPlan $bandwidthPlan)
     {
+        // Authorization check
+        if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+            abort(403, 'Unauthorized access to this bandwidth plan.');
+        }
+
         // Check if plan has any vouchers
         $vouchersCount = $bandwidthPlan->vouchers()->count();
 

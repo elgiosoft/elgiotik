@@ -26,6 +26,11 @@ class RouterController extends Controller
     {
         $query = Router::query();
 
+        // Scope to user's routers only (unless admin)
+        if (!auth()->user()->isAdmin()) {
+            $query->where('user_id', auth()->id());
+        }
+
         // Search by name, IP address, or location
         if ($request->filled('search')) {
             $search = $request->search;
@@ -71,7 +76,10 @@ class RouterController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:routers,name'],
-            'ip_address' => ['required', 'ip', 'unique:routers,ip_address'],
+            'ip_address' => ['required', 'ip',  
+                Rule::unique('routers', 'ip_address')->where(function ($query) use ($request) {
+                    return $query->where('user_id', auth()->id());
+                }),],
             'api_port' => ['required', 'integer', 'min:1', 'max:65535'],
             'username' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:6'],
@@ -83,6 +91,9 @@ class RouterController extends Controller
         ]);
 
         try {
+            // Set user_id to authenticated user
+            $validated['user_id'] = auth()->id();
+
             // Encrypt password before storing
             $validated['password'] = Crypt::encryptString($validated['password']);
             $validated['status'] = 'offline'; // Default status
@@ -120,6 +131,11 @@ class RouterController extends Controller
      */
     public function show(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             // Load relationships
             $router->load(['hotspotUsers', 'vouchers']);
@@ -164,6 +180,11 @@ class RouterController extends Controller
      */
     public function edit(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             // Decrypt password for editing
             $router->decrypted_password = Crypt::decryptString($router->password);
@@ -179,9 +200,17 @@ class RouterController extends Controller
      */
     public function update(Request $request, Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('routers')->ignore($router->id)],
-            'ip_address' => ['required', 'ip', Rule::unique('routers')->ignore($router->id)],
+            'ip_address' => ['required', 'ip', Rule::unique('routers', 'ip_address')
+                        ->where(fn ($query) => $query->where('user_id', auth()->id()))
+                        ->ignore($router->id),
+            ],
             'api_port' => ['required', 'integer', 'min:1', 'max:65535'],
             'username' => ['required', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'min:6'],
@@ -239,6 +268,11 @@ class RouterController extends Controller
      */
     public function destroy(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             // Check if there are active users
             $activeUsersCount = $router->hotspotUsers()->where('is_online', true)->count();
@@ -270,6 +304,11 @@ class RouterController extends Controller
      */
     public function testConnection(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
 
             $mikrotik = new MikroTikService();
@@ -296,6 +335,11 @@ class RouterController extends Controller
      */
     public function syncUsers(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
 
             $mikrotik = new MikroTikService($router);
@@ -375,6 +419,11 @@ class RouterController extends Controller
      */
     public function disconnect(Router $router, Request $request)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         $validated = $request->validate([
             'username' => ['required', 'string'],
         ]);
@@ -461,6 +510,11 @@ class RouterController extends Controller
      */
     public function enableVpn(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             if ($router->vpn_enabled) {
                 return back()->with('info', 'VPN is already enabled for this router.');
@@ -480,6 +534,11 @@ class RouterController extends Controller
      */
     public function disableVpn(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             if (!$router->vpn_enabled) {
                 return back()->with('info', 'VPN is not enabled for this router.');
@@ -509,6 +568,11 @@ class RouterController extends Controller
      */
     public function regenerateVpn(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             if (!$router->vpn_enabled) {
                 return back()->with('error', 'VPN is not enabled for this router.');
@@ -558,6 +622,11 @@ class RouterController extends Controller
      */
     public function downloadVpnScript(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         if (!$router->vpn_enabled || !$router->vpn_config_script) {
             return back()->with('error', 'VPN configuration not available for this router.');
         }
@@ -572,24 +641,37 @@ class RouterController extends Controller
     /**
      * Withdraw router wallet balance using ElgioPay payout
      */
-    public function withdraw(Router $router)
+    public function withdraw(Request $request, Router $router)
     {
-        try {
-            $balance = $router->wallet_balance;
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
 
-            if ($balance <= 0) {
-                return back()->with('error', 'No balance available to withdraw.');
+        // Validate request
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:1', 'max:' . $router->wallet_balance],
+            'phone_number' => ['required', 'string', 'regex:/^237[0-9]{9}$/'],
+        ]);
+
+        try {
+            $amount = $validated['amount'];
+            $phoneNumber = $validated['phone_number'];
+
+            if ($amount <= 0) {
+                return back()->with('error', 'Invalid withdrawal amount.');
             }
 
-            // TODO: Add phone number field to router or use admin phone
-            $phoneNumber = '237XXXXXXXXX'; // This should come from router/user settings
+            if ($amount > $router->wallet_balance) {
+                return back()->with('error', 'Insufficient balance. Available: ' . number_format($router->wallet_balance, 0) . ' XAF');
+            }
 
             // Initialize ElgioPay client
             $elgioPay = new ElgioPayClient();
 
             // Create payout request
             $payoutData = [
-                'amount' => $balance * 10, // Convert to minimum currency unit
+                'amount' => $amount * 10, // Convert to minimum currency unit
                 'phone_number' => $phoneNumber,
                 'payment_method' => 'mtn_mobile_money',
                 'currency' => 'XAF',
@@ -601,19 +683,20 @@ class RouterController extends Controller
 
             // Debit the wallet
             $router->debitWallet(
-                $balance,
+                $amount,
                 $payoutResponse['payout_id'] ?? $payoutData['reference'],
-                'Withdrawal via ElgioPay',
+                'Withdrawal via ElgioPay to ' . $phoneNumber,
                 ['payout_response' => $payoutResponse]
             );
 
             Log::info("Wallet withdrawal processed for router {$router->name}", [
                 'router_id' => $router->id,
-                'amount' => $balance,
+                'amount' => $amount,
+                'phone_number' => $phoneNumber,
                 'reference' => $payoutData['reference'],
             ]);
 
-            return back()->with('success', 'Withdrawal request submitted successfully. Amount: ' . number_format($balance, 0) . ' XAF');
+            return back()->with('success', 'Withdrawal request submitted successfully. Amount: ' . number_format($amount, 0) . ' XAF to ' . $phoneNumber);
 
         } catch (ElgioPayException $e) {
             Log::error('ElgioPay withdrawal error: ' . $e->getMessage());
@@ -630,6 +713,11 @@ class RouterController extends Controller
      */
     public function downloadPortal(Router $router)
     {
+        // Authorization check
+        if (!auth()->user()->ownsRouter($router)) {
+            abort(403, 'Unauthorized access to this router.');
+        }
+
         try {
             // Render the portal view as HTML
             $html = view('guest.portal', compact('router'))->render();

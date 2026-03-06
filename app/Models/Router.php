@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Crypt;
 
 
@@ -18,6 +19,7 @@ class Router extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'user_id',
         'name',
         'ip_address',
         'api_port',
@@ -87,6 +89,11 @@ class Router extends Model
     /**
      * Relationships
      */
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function vouchers(): HasMany
     {

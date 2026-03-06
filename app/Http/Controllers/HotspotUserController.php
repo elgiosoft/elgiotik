@@ -22,7 +22,15 @@ class HotspotUserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = HotspotUser::with(['router', 'bandwidthPlan', 'customer', 'createdBy']);
+        $user = auth()->user();
+
+        // Get user's router IDs
+        $routerIds = $user->isAdmin()
+            ? Router::pluck('id')
+            : Router::where('user_id', $user->id)->pluck('id');
+
+        $query = HotspotUser::with(['router', 'bandwidthPlan', 'customer', 'createdBy'])
+            ->whereIn('router_id', $routerIds);
 
         // Search filter
         if ($request->filled('search')) {
@@ -78,8 +86,17 @@ class HotspotUserController extends Controller
      */
     public function create()
     {
-        $routers = Router::active()->get();
-        $bandwidthPlans = BandwidthPlan::active()->get();
+        $user = auth()->user();
+
+        // Scope to user's resources
+        $routers = $user->isAdmin()
+            ? Router::active()->get()
+            : Router::where('user_id', $user->id)->active()->get();
+
+        $bandwidthPlans = $user->isAdmin()
+            ? BandwidthPlan::active()->get()
+            : BandwidthPlan::where('user_id', $user->id)->active()->get();
+
         $customers = Customer::active()->get();
 
         return response()->json([
@@ -115,6 +132,21 @@ class HotspotUserController extends Controller
             // Get router and bandwidth plan
             $router = Router::findOrFail($validated['router_id']);
             $bandwidthPlan = BandwidthPlan::findOrFail($validated['bandwidth_plan_id']);
+
+            // Authorization check
+            if (!auth()->user()->ownsRouter($router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: You do not own this router.',
+                ], 403);
+            }
+
+            if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: You do not own this bandwidth plan.',
+                ], 403);
+            }
 
             // Calculate expiration date if not provided
             if (!isset($validated['expires_at']) && $bandwidthPlan->hasTimeLimit()) {
@@ -180,6 +212,14 @@ class HotspotUserController extends Controller
                 }
             ])->findOrFail($id);
 
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
+
             // Get online status from router
             if ($hotspotUser->router && $hotspotUser->router->isOnline()) {
                 $mikrotik = new MikroTikService($hotspotUser->router);
@@ -223,8 +263,26 @@ class HotspotUserController extends Controller
     {
         try {
             $hotspotUser = HotspotUser::with(['router', 'bandwidthPlan', 'customer'])->findOrFail($id);
-            $routers = Router::active()->get();
-            $bandwidthPlans = BandwidthPlan::active()->get();
+
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
+
+            $user = auth()->user();
+
+            // Scope to user's resources
+            $routers = $user->isAdmin()
+                ? Router::active()->get()
+                : Router::where('user_id', $user->id)->active()->get();
+
+            $bandwidthPlans = $user->isAdmin()
+                ? BandwidthPlan::active()->get()
+                : BandwidthPlan::where('user_id', $user->id)->active()->get();
+
             $customers = Customer::active()->get();
 
             return response()->json([
@@ -253,6 +311,14 @@ class HotspotUserController extends Controller
         try {
             $hotspotUser = HotspotUser::findOrFail($id);
 
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
+
             $validated = $request->validate([
                 'username' => [
                     'required',
@@ -279,6 +345,21 @@ class HotspotUserController extends Controller
             // Get router and bandwidth plan
             $router = Router::findOrFail($validated['router_id']);
             $bandwidthPlan = BandwidthPlan::findOrFail($validated['bandwidth_plan_id']);
+
+            // Authorization check for new router and bandwidth plan
+            if (!auth()->user()->ownsRouter($router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: You do not own the specified router.',
+                ], 403);
+            }
+
+            if (!auth()->user()->ownsBandwidthPlan($bandwidthPlan)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized: You do not own the specified bandwidth plan.',
+                ], 403);
+            }
 
             // Update user on old router if username changed or router changed
             if ($oldUsername !== $validated['username'] || $oldRouterId !== $validated['router_id']) {
@@ -352,6 +433,15 @@ class HotspotUserController extends Controller
 
         try {
             $hotspotUser = HotspotUser::findOrFail($id);
+
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
+
             $router = $hotspotUser->router;
 
             // Disconnect if online
@@ -394,6 +484,14 @@ class HotspotUserController extends Controller
     {
         try {
             $hotspotUser = HotspotUser::findOrFail($id);
+
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
 
             if (!$hotspotUser->is_online) {
                 return response()->json([
@@ -447,6 +545,14 @@ class HotspotUserController extends Controller
 
         try {
             $hotspotUser = HotspotUser::findOrFail($id);
+
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
 
             if ($hotspotUser->isExpired()) {
                 return response()->json([
@@ -520,6 +626,14 @@ class HotspotUserController extends Controller
         try {
             $hotspotUser = HotspotUser::findOrFail($id);
 
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
+
             if ($hotspotUser->isDisabled()) {
                 return response()->json([
                     'success' => false,
@@ -578,7 +692,15 @@ class HotspotUserController extends Controller
      */
     public function onlineUsers(Request $request)
     {
+        $user = auth()->user();
+
+        // Get user's router IDs
+        $routerIds = $user->isAdmin()
+            ? Router::pluck('id')
+            : Router::where('user_id', $user->id)->pluck('id');
+
         $query = HotspotUser::with(['router', 'bandwidthPlan', 'customer'])
+            ->whereIn('router_id', $routerIds)
             ->online();
 
         // Router filter
@@ -624,6 +746,15 @@ class HotspotUserController extends Controller
     {
         try {
             $hotspotUser = HotspotUser::findOrFail($id);
+
+            // Authorization check
+            if (!auth()->user()->ownsRouter($hotspotUser->router)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this hotspot user.',
+                ], 403);
+            }
+
             $router = $hotspotUser->router;
 
             if (!$router || !$router->isOnline()) {
